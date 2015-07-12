@@ -1,0 +1,3 @@
+# Ignore list for Math repository
+*.m~
+*.mat
