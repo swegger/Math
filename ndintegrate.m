@@ -67,9 +67,9 @@ p = inputParser;
 
 addRequired(p,'functionHandle');
 addRequired(p,'MinMax');
-addParamValue(p,'method','quad');
-addParamValue(p,'options',options);
-addParamValue(p,'ExtraVariables',[]);
+addParameter(p,'method','quad');
+addParameter(p,'options',options);
+addParameter(p,'ExtraVariables',[]);
 
 parse(p,functionHandle,MinMax,varargin{:});
 
