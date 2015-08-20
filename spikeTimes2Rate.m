@@ -52,9 +52,9 @@ allspikes = [spikeTimes{:}];
 if isempty(StartEnd)
     minT = min(allspikes);
     maxT = max(allspikes);
-    time = [minT:resolution:maxT]';
+    time = (minT:resolution:maxT)';
 else
-    time = [StartEnd(1):resolution:StartEnd(2)]';
+    time = (StartEnd(1):resolution:StartEnd(2))';
 end
 
 % Determine probability of firing
@@ -69,7 +69,7 @@ switch ComputeVariance
                 else
                     Time = repmat(time,1,length(allspikes));
                     Spikes = repmat(allspikes,length(time),1);
-                    rate = 1/length(spikeTimes) * sum( Filter(Time-Spikes) , 2);
+                    rate = 1/length(spikeTimes) * nansum( Filter(Time-Spikes) , 2);
                 end
                 r = nan(length(time),length(spikeTimes));
                 rateVariance = nan(length(time),1);
@@ -93,9 +93,13 @@ switch ComputeVariance
                     if isempty(spikeTimes{i})
                         r(:,i) = zeros(size(time));
                     else
-                        Time = repmat(time,1,length(spikeTimes{i}));
-                        Spikes = repmat(spikeTimes{i},length(time),1);
-                        r(:,i) = sum( Filter(Time-Spikes) , 2);
+                        r(:,i) = zeros(length(time),1);
+                        for j = 1:length(spikeTimes{i})
+                            r(:,i) = r(:,i) + Filter(time - spikeTimes{i}(j));
+                        end
+%                        Time = repmat(time,1,length(spikeTimes{i}));
+%                        Spikes = repmat(spikeTimes{i},length(time),1);
+%                        r(:,i) = sum( Filter(Time-Spikes) , 2);
                     end
                 end
                 rate = mean(r,2);

@@ -114,34 +114,86 @@ switch method
                     case 'MonteCarlo'
                         error('integrationMethod "MonteCarlo" not yet supported!')
                 end
+                
+            case 'aveMeasurements'
+                error('Analytical solution to aveMeasurement model not yet supported!')
+                
+            otherwise
+                error(['Analytical solution to ' Type ' model not yet supported'])
         end
         
     case 'numerical'
-        % Iterate for each ts
-        %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
-        for i = 1:length(ts)
-            % Generate measuments of each ts
-            noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
-            tm = ts(i)*ones(trials,N) + noise;
-            method_opts.type = 'quad';
-            method_opts.dx = dt;
-            BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts);
+        switch Type
+            case 'BLS'
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts);
+                    
+                    BLS = BLS + wp*BLS.*randn(size(BLS));
+                    
+                    errors(:,i) = BLS - ts(i);
+                    ta(i) = mean(BLS);
+                    ta_std(i) = std(BLS);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;
             
-            BLS = BLS + wp*BLS.*randn(size(BLS));
-            
-            ta(i) = mean(BLS);
-            ta_std(i) = std(BLS);
-            
-            %waitbar(i/length(ts))
+            case 'gBLS'
+                error('gBLS numerical simulation not yet supported!')
+                
+            case 'sequential'
+                error('sequential numerical simulation not yet supported!')
+                
+            case 'aveMeasurements'
+                
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    estimator.type = 'weightedMean';
+                    estimator.weights = ones(1:N)/N;
+                    E = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
+                    
+                    E = E + wp*E.*randn(size(E));
+                    
+                    errors(:,i) = E - ts(i);
+                    ta(i) = mean(E);
+                    ta_std(i) = std(E);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;
+                
+            otherwise
+                error(['Numerical simulation of model type ' Type ' not yet supported!'])
         end
-        
-        % Bias
-        bias2 = mean((ta(:)-ts(:)).^2);
-        v = mean(ta_std.^2);
-        varargout{1} = bias2;
-        varargout{2} = v;
-        
-        %close(h)
 end
         
 

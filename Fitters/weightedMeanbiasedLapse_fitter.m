@@ -1,4 +1,4 @@
-function [wm, wy, b, lapse, llikelihood, modelEvidence] = BLSbiasedLapse_fitter(x,y,varargin)
+function [wm, wy, b, lapse, beta, llikelihood] = weightedMeanbiasedLapse_fitter(x,y,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
@@ -17,8 +17,6 @@ ICflg = 0;
 FitterFlg = 0;
 Nflg = 0;
 LapseSupportflg = 0;
-CrossValidationflg = 0;
-ModelEvidenceflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
         if strcmp(varargin{i},'InitCond')
@@ -33,12 +31,6 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'LapseSupport')
             LapseSupportflg = 1;
             LapseSupportnum = i;
-        elseif strcmp(varargin{i},'CrossValidation')
-            CrossValidationflg = 1;
-            CrossValidationnum = i;
-        elseif strcmp(varargin{i},'ModelEvidence')
-            ModelEvidenceflg = 1;
-            ModelEvidencenum = i;
         end
     end
 end
@@ -105,224 +97,97 @@ else
     end
 end
 
-if CrossValidationflg
-    CrossValidation = varargin{CrossValidationnum+1};
-else
-    CrossValidation.On = 'No';
-end
-
-if ModelEvidenceflg
-    ModelEvidence = varargin{ModelEvidencenum+1};
-else
-    ModelEvidence.method = 'none';
-end
-
 if nargin < 3 
     error('Not enought input arguments!')
 end
 
-% Set up cross validation
-switch CrossValidation.Type
-    case 'None'
-        % No cross validation, fit all the data
-        xfit{1} = x;
-        yfit{1} = y;
-        xval{1} = x;
-        yval{1} = y;
-        
-    case 'FitFraction'
-        % Fit a fraction of the data and validate on the remaining
-        if ~isfield(CrossValidation,'Iter')
-            CrossValidation.Iter = 1;
-        end
-        for ii = 1:CrossValidation.Iter
-            if iscell(x)
-                for i = 1:length(x)
-                    [xfit{ii}{i} indx] = datasample(x{i},ceil(CrossValidation.FitPercent*length(x{i})),'Replace',false);
-                    yfit{ii}{i} = y{i}(indx);
-                    valvec = zeros(length(x{i}),1);
-                    valvec(indx) = 1;
-                    valvec = ~valvec;
-                    xval{ii} = x{i}(valvec);
-                    yval{ii} = y{i}(valvec);
-                end
-                
-            else
-                [xfit{ii} indx] = datasample(x,ceil(CrossValidation.FitPercent*length(x)),'Replace',false);
-                yfit{ii} = y(indx);
-                valvec = zeros(length(x),1);
-                valvec(indx) = 1;
-                valvec = ~valvec;
-                xval{ii} = x(valvec);
-                yval{ii} = y(valvec);
-            end
-        end
-        
-    case 'LNOCV'
-        % Leave N out crossvalidation: fit on all but N, validate on N,
-        % repeat until all the data is processed
-        if iscell(x)
-            for i = 1:length(x)
-                for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                    if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                        indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                        fitvec = true(1,length(x{i}));
-                        fitvec(indx) = false; 
-                        valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
-                    else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
-                    end
-                end
-            end
-            
-        else
-            for ii = 1:ceil(length(x)/CrossValidation.N)
-                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                    indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                    fitvec = true(1,length(x));
-                    fitvec(indx) = false;
-                    valvec = ~fitvec;
-                    xfit{ii} = x( fitvec );
-                    yfit{ii} = y( fitvec );
-                    xval{ii} = x( valvec );
-                    yval{ii} = y( valvec );
-                else
-                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N );
-                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N );
-                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end );
-                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end );
-                end
-            end
-        end   
-        
-    otherwise
-        error(['Cross validation type ' CrossValidation.Type ' not recognized!'])
-end
 
 % Fit according to minimizer
 OPTIONS = optimset('Display','iter');
 
-for ii = 1:length(xfit)
-    switch FitType
-        case 'integral'
-            % Use integral
-            BLSminimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
-            BLSvalidant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
-            
-        case 'trapz'
-            % Use trapz
-            BLSminimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
-            BLSvalidant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
-            
-        case 'quad'
-            % Use Simpson's quadrature
-            m = 0:dx:2*xmax;
-            l = length(m);
-            if iscell(N)
-                n= max([N{:}]);
-                Mtemp = cell(1,n);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^n,n);
-                for j = 1:n
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            else
-                n = N;
-                Mtemp = cell(1,N);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^N,N);
-                for j = 1:N
-                    M(:,j) = [Mtemp{j}(:)];
-                end
+switch FitType
+    case 'integral'
+        % Use integral
+        BLSminimizant = @(p)logLikelihood(p(1),p(2),p(3),N,x,y,xmin,xmax);
+        
+    case 'trapz'
+        % Use trapz
+        BLSminimizant = @(p)logLikelihoodTRAPZ(p(1),p(2),p(3),N,m,x,y);
+        
+    case 'quad'
+        % Use Simpson's quadrature
+        m = 0:dx:2*xmax;
+        l = length(m);
+        if iscell(N)
+            n= max([N{:}]);
+            Mtemp = cell(1,n);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^n,n);
+            for j = 1:n
+                M(:,j) = [Mtemp{j}(:)];
             end
-            
-            BLSminimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            BLSvalidant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            
-        case 'quad_batch'
-            % Use Simpson's quadrature on batches of data
-            m = 0:dx:2*xmax;
-            l = length(m);
-            if iscell(N)
-                n = max([N{:}]);
-                Mtemp = cell(1,n);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^n,n);
-                for j = 1:n
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            else
-                n = N;
-                Mtemp = cell(1,N);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^N,N);
-                for j = 1:N
-                    M(:,j) = [Mtemp{j}(:)];
-                end
+        else
+            n = N;
+            Mtemp = cell(1,N);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^N,N);
+            for j = 1:N
+                M(:,j) = [Mtemp{j}(:)];
             end
-            
-            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,batchsize);
-            
-        case 'quad_nested'
-            % Use Simpson's quadrature on batches of data, performing
-            % integrations in nested loops
-            m = 0:dx:2*xmax;
-            l = length(m);
-            
-            BLSminimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
-    end
-    
-    %minimizer = 'fminsearch(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
-    ub = [1 1 Inf 1];
-    minimizer = 'fmincon(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
-    wM_ini = IC(1);
-    wP_ini = IC(2);
-    b_ini = IC(3);
-    lapse_ini = IC(4);
-    [lparams, llike] = eval(minimizer);
-    
-    wm(ii) = lparams(1);
-    wy(ii) = lparams(2);
-    b(ii) = lparams(3);
-    lapse(ii) = lparams(4);
-    
-    switch CrossValidation.Type
-        case 'None'
-            llikelihood(ii) = llike;
-            
-        otherwise
-            llikelihood(ii) = BLSvalidant(lparams);
-            
-    end
-    
-    switch ModelEvidence.method
-        case 'Integration'
-            
-            functionHandle = @(P)(modelEvidenceFunction(llikelihood(ii),BLSvalidant(P)));
-            modelEvidence(ii) = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions);
-            
-        case 'UniformApproximation'
-            error('UniformApproximation method for model evidence not yet supported!')
-        case 'GaussianApproximation'
-            error('GaussianApproximation method for model evidence not yet supported!')
-        case 'none'
-            modelEvidence(ii) = NaN;
-            
-        otherwise
-            error(['Model evidence calculation method ' ModelEvidence.method ' not recognized!'])
-    end
+        end
+        
+        BLSminimizant = @(p)logLikelihoodQUAD(p(1),p(2),p(3),p(4),p(5),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+        
+    case 'quad_batch'
+        % Use Simpson's quadrature on batches of data
+        m = 0:dx:2*xmax;
+        l = length(m);
+        if iscell(N)
+            n = max([N{:}]);
+            Mtemp = cell(1,n);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^n,n);
+            for j = 1:n
+                M(:,j) = [Mtemp{j}(:)];
+            end
+        else
+            n = N;
+            Mtemp = cell(1,N);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^N,N);
+            for j = 1:N
+                M(:,j) = [Mtemp{j}(:)];
+            end
+        end
+        
+        BLSminimizant = @(p)logLikelihoodQUADbatch(p(1),p(2),p(3),N,x,y,xmin,xmax,dx,M,m,batchsize);
+        
+    case 'quad_nested'        
+        % Use Simpson's quadrature on batches of data, performing
+        % integrations in nested loops
+        m = 0:dx:2*xmax;
+        l = length(m);
 
+        BLSminimizant = @(p)logLikelihoodQUADnested(p(1),p(2),p(3),N,x,y,xmin,xmax,dx,m,batchsize);
 end
+
+%minimizer = 'fminsearch(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
+lb = [0 0 -Inf 0 0.5];
+ub = [1 1 Inf 1 1];
+minimizer = 'fmincon(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini beta_ini], [], [], [], [], lb, ub, [], OPTIONS);';
+wM_ini = IC(1);
+wP_ini = IC(2);
+b_ini = IC(3);
+lapse_ini = IC(4);
+beta_ini = IC(5);
+[lparams, llikelihood] = eval(minimizer);
+
+wm = lparams(1);
+wy = lparams(2);
+b = lparams(3);
+lapse = lparams(4);
+beta = lparams(5);
+llikelihood = llikelihood;
     
 
 %% Function to be minimized
@@ -391,7 +256,7 @@ end
 
 logL = -sum(log(Likelihoods));
 
-function logL = logLikelihoodQUAD(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
+function logL = logLikelihoodQUAD(wm,wy,b,lapse,beta,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
 %% LOGLIKELIHOODQUAD
 %
 %   Calculates the log likelihood of scalar
@@ -411,115 +276,65 @@ if iscell(N)
 %     else
 %         m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
 %     end
-l = length(m);
+     l = length(m);
 %     Mtemp = cell(1,max([N{:}]));
 %     [Mtemp{:}] = ndgrid(m);
 %     M = zeros(l^max([N{:}]),max([N{:}]));
 %     for j = 1:max([N{:}])
 %         M(:,j) = [Mtemp{j}(:)];
 %     end
-
-logLi = nan(length(N),length(wm));
-for i = 1:length(N)
-    n = N{i};
     
-    if n*length(m)^n > 4000000
-        error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
+    for i = 1:length(N)
+        n = N{i};
+        
+        if n*length(m)^n > 4000000
+            error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
+        end
+        
+        % Set up Simpson's nodes
+        w = ones(1,l);
+        h = (m(end)-m(1))/l;
+        w(2:2:l-1) = 4;
+        w(3:2:l-1) = 2;
+        w = w*h/3;
+        
+        W = w(:);
+        for j = 2:n
+            W = W*w;
+            W = W(:);
+        end
+        
+        % Lapse Model
+        uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
+        lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
+        
+        % BLS model
+        method_opts.type = 'quad';
+        method_opts.dx = dx;
+        estimator.type = 'weightedMean';
+        if n == 1
+            estimator.weights = 1;
+        elseif n == 2
+            estimator.weights = [beta 1-beta];     % Ensure that weights sum to 1;
+        else
+            error('n > 2 not supported!')
+        end
+        fBLS = ScalarBayesEstimators(M(1:l^n,1:n),wm,xmin,xmax,'method',method_opts,'estimator',estimator);
+        X = repmat(x{i}',numel(fBLS),1);
+        Y = repmat(y{i}',numel(fBLS),1);
+        fBLS = repmat(fBLS,1,size(X,2));
+        
+        p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
+        p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wm.^2.*X.^2) );
+%        p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)) .* exp( -(repmat(permute(sum(M(1:l^n,1:n).*repmat(estimator.weights,l^n,1),2),[1 3 2]),[1 size(X,2) 1])-X).^2./(2.*wm.^2.*X.^2) );
+        integrand = p_y_take_fBLS.*p_m_take_x;
+        
+        likelihood = (1-lambda(lapse,Y,X)).*W(1:l^n)'*integrand + lambda(lapse,Y,X).*uni(pmin,pmax,Y);
+        
+        logLi(i) = -sum(log(likelihood));
+        
     end
-    
-    % Set up Simpson's nodes
-    w = ones(1,l);
-    h = (m(end)-m(1))/l;
-    w(2:2:l-1) = 4;
-    w(3:2:l-1) = 2;
-    w = w*h/3;
-    
-    W = w(:);
-    for j = 2:n
-        W = W*w;
-        W = W(:);
-    end
-    
-    % Lapse Model
-    uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
-    lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
-    
-    % BLS model
-    method_opts.type = 'quad';
-    method_opts.dx = dx;
-    fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
-    for ii = 1:length(wm)
-        fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts);
-    end
-    X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
-    Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
-    M = repmat(M,[1 1 length(wm)]);
-    fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
-    WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    
-    p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
-    p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
-    integrand = p_y_take_fBLS.*p_m_take_x;
-    
-    for ii = 1:length(wm)
-        likelihood = (1-lambda(lapse(ii),Y,X)).*W(1:l^n)'*integrand(:,:,ii) + lambda(lapse(ii),Y,X).*uni(pmin,pmax,Y(:,:,ii));    
-        logLi(i,ii) = -sum(log(likelihood),2);
-    end
-    
-end
-logL = permute(sum(logLi,1),[2 1]);
-
-% for ii = 1:length(wm)
-%     wmii = wm(ii);
-%     wyii = wy(ii);
-%     bii = b(ii);
-%     lapseii = lapse(ii);
-%     for i = 1:length(N)
-%         n = N{i};
-%         
-%         if n*length(m)^n > 4000000
-%             error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
-%         end
-%         
-%         % Set up Simpson's nodes
-%         w = ones(1,l);
-%         h = (m(end)-m(1))/l;
-%         w(2:2:l-1) = 4;
-%         w(3:2:l-1) = 2;
-%         w = w*h/3;
-%         
-%         W = w(:);
-%         for j = 2:n
-%             W = W*w;
-%             W = W(:);
-%         end
-%         
-%         % Lapse Model
-%         uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
-%         lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
-%         
-%         % BLS model
-%         method_opts.type = 'quad';
-%         method_opts.dx = dx;
-%         fBLS = ScalarBayesEstimators(M(1:l^n,1:n),wmii,xmin,xmax,'method',method_opts);
-%         X = repmat(x{i}',numel(fBLS),1);
-%         Y = repmat(y{i}',numel(fBLS),1);
-%         fBLS = repmat(fBLS,1,size(X,2));
-%         
-%         p_y_take_fBLS = (1./sqrt(2.*pi.*wyii.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+bii)).^2./(2.*wyii.^2.*fBLS.^2) );
-%         p_m_take_x = (1./sqrt(2.*pi.*wmii.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wmii.^2.*X.^2) );
-%         integrand = p_y_take_fBLS.*p_m_take_x;
-%         
-%         likelihood = (1-lambda(lapseii,Y,X)).*W(1:l^n)'*integrand + lambda(lapseii,Y,X).*uni(pmin,pmax,Y);
-%         
-%         logLi(i) = -sum(log(likelihood));
-%         
-%     end
-%     logL(ii,:) = sum(logLi);
-% end
+    logL = sum(logLi);
 
 else
 
@@ -992,10 +807,3 @@ else
     logL = -sum(logLk);
     
 end
-
-
-%% ModelEvidence functions
-    function out = modelEvidenceFunction(ll,lfun)
-        out = exp(-lfun + ll);
-        out(isnan(out)) = 0;
-        out = out(:);
