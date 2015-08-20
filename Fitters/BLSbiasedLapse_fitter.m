@@ -268,8 +268,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,batchsize);
+            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,batchsize);
+            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,batchsize);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
