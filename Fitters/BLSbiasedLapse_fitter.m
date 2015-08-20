@@ -268,8 +268,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,batchsize);
+            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
@@ -627,7 +627,7 @@ else
     
 end
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,N,x,y,xmin,xmax,dx,M,m,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
