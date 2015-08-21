@@ -709,11 +709,12 @@ if iscell(N)
 %     end
 %     logL = sum(reshape(logLik,numel(logLik),1));
 
-logL= 0;
-
+for i = 1:length(N)
+    logLik{i} = nan(length(wm),ceil(length(x{i})/batchsize));
+end
+logL = zeros(length(wm),1);
 for i = 1:length(N)
     n = N{i};
-    logLik = nan(length(N),length(wm),ceil(length(x{i})/batchsize));
     
     for k = 1:ceil(length(x{i})/batchsize)
         if length(x{i}) <= (k-1)*batchsize+batchsize
@@ -763,11 +764,11 @@ for i = 1:length(N)
         
         for ii = 1:length(wm)
             likelihood = (1-lambda(lapse(ii),Y,X)).*W(1:l^n)'*integrand(:,:,ii) + lambda(lapse(ii),Y,X).*uni(pmin,pmax,Y(:,:,ii));
-            logLik(i,ii,k) = -sum(log(likelihood),2);
+            logLik{i}(ii,k) = -sum(log(likelihood),2);
         end
     end
+    logL = logL + sum(logLik{i},2);
 end
-    logL = permute(sum(sum(logLik,3),2),[2 1]);
     
 else
     
