@@ -113,6 +113,9 @@ end
 
 if ModelEvidenceflg
     ModelEvidence = varargin{ModelEvidencenum+1};
+    if ~isfield(ModelEvidence,'OpenMind')
+        ModelEvidence.OpenMind = 0;
+    end
 else
     ModelEvidence.method = 'none';
 end
@@ -309,7 +312,7 @@ for ii = 1:length(xfit)
         case 'Integration'
             
             functionHandle = @(P)(modelEvidenceFunction(llikelihood(ii),BLSvalidant(P)));
-            modelEvidence(ii) = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions);
+            modelEvidence(ii) = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions,'OpenMind',ModelEvidence.OpenMind);
             
         case 'UniformApproximation'
             error('UniformApproximation method for model evidence not yet supported!')

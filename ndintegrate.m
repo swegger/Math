@@ -70,6 +70,7 @@ addRequired(p,'MinMax');
 addParameter(p,'method','quad');
 addParameter(p,'options',options);
 addParameter(p,'ExtraVariables',[]);
+addParameter(p,'OpenMind',false)
 
 parse(p,functionHandle,MinMax,varargin{:});
 
@@ -78,6 +79,7 @@ MinMax = p.Results.MinMax;
 method = p.Results.method;
 options = p.Results.options;
 y = p.Results.ExtraVariables;
+OpenMind = p.Results.OpenMind;
 
 
 % Perform the integration
@@ -95,7 +97,7 @@ switch method
             lx(i) = length(x{i});
         end
         
-        if sum(lx.^N) > 4000000
+        if sum(lx.^N) > 4000000 && ~OpenMind
             error('Likely to stress memory limits; suggest increasing options.dx or trying the Monte Carlo integration method')
         end
         
@@ -148,7 +150,7 @@ switch method
             lx(i) = length(x{i});
         end
         
-        if sum(lx.^N) > 4000000
+        if sum(lx.^N) > 4000000 && ~OpenMind
             error('Likely to stress memory limits; suggest increasing options.dx or trying the Monte Carlo integration method')
         end        
         
