@@ -627,7 +627,7 @@ else
     
 end
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
