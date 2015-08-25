@@ -19,10 +19,17 @@ function [integraldx, errest] = ndintegrate(functionHandle,MinMax,varargin)
 %       according to the method specified by "method". Available methods:
 %           'quad' (default) - uses the composite Simpson's quadrature
 %           'trapz' - uses linear interpolation
-%           'MonteCarlo' - uses Monte Carlo integration
+%           'MonteCarlo' - uses Monte Carlo integration - TODO: importance
+%                          sampling
 %           'Gauss-Lobatto' - NOT YET SUPPORTED
 %           'Gauss' - TODO - NOT YET SUPPORTED
 %           'Newton-Cotes' - NOT YET SUPPORTED
+%           'LaplaceApproximation' - Users Laplace's approximation to
+%                                    estimate the value of the integral.
+%                                    Best when used on integrals of the
+%                                    form: ?exp(Mf(x))dx. User must supply
+%                                    the maximum of function, f(x0), and the
+%                                    Hessian of f(x) at x0.
 %
 %   integraldx =
 %   ndintegrate(functionHandle,MinMax,'method','quad','options',options)
@@ -223,8 +230,13 @@ switch method
             end
             ntot = ntot + n;
             
-            % Generate samples from the volume specified by MinMax;
-            x = repmat(diff(MinMax,1,2)',n,1).*rand(n,nd) + repmat(MinMax(:,1)',n,1);
+            % Generate samples from the volume specified by MinMax, or from a
+            % user-defined sampling distribution
+            if isfield(options,'samplingDistribution')
+                x = options.samplingDistribution(rand(N,nd));
+            else
+                x = repmat(diff(MinMax,1,2)',n,1).*rand(n,nd) + repmat(MinMax(:,1)',n,1);
+            end
             
             % Evaluate the function at each set of inputs
             if isempty(y)
@@ -273,8 +285,14 @@ switch method
         % Calculate the volume
         V = prod(diff(MinMax,1,2));
         
-        % Generate samples from the volume specified by MinMax;
-        x = repmat(diff(MinMax,1,2)',N,1).*rand(N,nd) + repmat(MinMax(:,1)',N,1);
+        % Generate samples from the volume specified by MinMax, or from a
+        % user-defined sampling distribution
+        if isfield(options,'samplingDistribution')
+            error('Use of arbitrary sampling distributions is not yet supported!')
+            x = options.samplingDistribution(rand(N,nd));
+        else
+            x = repmat(diff(MinMax,1,2)',N,1).*rand(N,nd) + repmat(MinMax(:,1)',N,1);
+        end
         
         % Evaluate the function at each set of inputs
         if isempty(y)
@@ -314,6 +332,52 @@ switch method
     case 'Newton-Cotes'
         
         error('Not yet supported')    
+        
+    case 'LaplaceApproximation'
+        % To use this approximation, the user must provide them as input
+        % arguments in the options structure:
+        %       options.x0 - the point of the maximum of the function to be
+        %       integrated, f(x).
+        %       options.hessian - a function representing the Hessian of the
+        %       function evaluated at x0 and y. The output should be a
+        %       matrix length(x0) by length(x0) in size.
+        if ~isfield(options,'HessianType')
+            options.HessianType = 'Function';
+        end
+        switch options.HessianType
+            case 'Function'
+                % Use a functional version of the Hessian
+                if isempty(y)
+                    integraldx = functionHandle(options.x0) * (2*pi)^(length(options.x0)/2) / sqrt(det(options.hessian(options.x0)));
+                else
+                    f = functionHandle(options.x0,y);       % Evaluate the function at x0 for each set of y values
+                    integraldx = nan(1,size(y,2));
+                    for i = 1:size(y,2)
+                        integraldx(1,i) = f(1,i) * (2*pi)^(length(options.x0)/2) / sqrt(det(options.hessian(options.x0,y(i,:))));     % Approximate the integral for each set of y values.
+                    end
+                end
+                errest = NaN;
+                
+            case 'Numerical'
+                % Use a numerical version of the Hessian, already
+                % calculated by the user
+                if isempty(y)
+                    integraldx = functionHandle(options.x0) * (2*pi)^(length(options.x0)/2) / sqrt(det(options.hessian));
+                else
+                    f = functionHandle(options.x0,y);       % Evaluate the function at x0 for each set of y values
+                    integraldx = nan(1,size(y,2));
+                    for i = 1:size(y,2)
+                        integraldx(1,i) = f(1,i) * (2*pi)^(length(options.x0)/2) / sqrt(det(options.hessian(:,:,i)));     % Approximate the integral for each set of y values.
+                    end
+                end
+                errest = NaN;
+                
+            otherwise
+                error(['Laplace approximation integration option ' options.HessianType ' not recognized!'])
+        end
+        
+    otherwise
+        error(['Integration method ' method ' not recognized!'])
 end
 
 %% Functions

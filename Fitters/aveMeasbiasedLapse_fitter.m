@@ -17,6 +17,7 @@ ICflg = 0;
 FitterFlg = 0;
 Nflg = 0;
 LapseSupportflg = 0;
+ModelEvidenceflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
         if strcmp(varargin{i},'InitCond')
@@ -34,6 +35,9 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'CrossValidation')
             CrossValidationflg = 1;
             CrossValidationnum = i;
+        elseif strcmp(varargin{i},'ModelEvidence')
+            ModelEvidenceflg = 1;
+            ModelEvidencenum = i;
         end
     end
 end
@@ -104,6 +108,15 @@ if CrossValidationflg
     CrossValidation = varargin{CrossValidationnum+1};
 else
     CrossValidation.Type = 'None';
+end
+
+if ModelEvidenceflg
+    ModelEvidence = varargin{ModelEvidencenum+1};
+    if ~isfield(ModelEvidence,'OpenMind')
+        ModelEvidence.OpenMind = 0;
+    end
+else
+    ModelEvidence.method = 'none';
 end
 
 if nargin < 3 
@@ -285,6 +298,7 @@ for ii = 1:length(xfit)
     b(ii) = lparams(3);
     lapse(ii) = lparams(4);
     
+    % Determine likelihood of the data
     switch CrossValidation.Type
         case 'None'
             llikelihood(ii) = llike;
@@ -292,6 +306,32 @@ for ii = 1:length(xfit)
         otherwise
             llikelihood(ii) = validant(lparams);
             
+    end
+    
+    % Calculate model evidence
+    switch ModelEvidence.method
+        case 'Integration'
+            % Numerical integration of the likelihood function across
+            % different parameter values.
+            functionHandle = @(P)(modelEvidenceFunction(llikelihood(ii),validant(P)));
+            modelEvidence = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions,'OpenMind',ModelEvidence.OpenMind);
+            lmodelEvidence(ii) = log(modelEvidence) - llikelihood(ii);      % log model evidence
+            
+        case 'UniformApproximation'
+            error('UniformApproximation method for model evidence not yet supported!')
+            
+        case 'GaussianApproximation'
+            % Use Laplace's method to estimate the integral over the
+            % parameters via a Gaussian with mu at the ML fit and
+            % covariance from the Hessian at the ML fit.
+            error('Gaussian approximation method for model evidence not yet supported!')
+            %lmodelEvidence(ii) = -llikelihood(ii) + log(1/prod(diff(ModelEvidence.paramLimits,1,2))) + length(lparams)/2*log(2*pi) - log(det(-hessian))/2;  % log model evidence <- this hessian isn't right... its the hessian of ln(p(D|p,M))
+            
+        case 'none'
+            lmodelEvidence(ii) = NaN;
+            
+        otherwise
+            error(['Model evidence calculation method ' ModelEvidence.method ' not recognized!'])
     end
 
 end
@@ -907,3 +947,9 @@ else
     logL = -sum(logLk);
     
 end
+
+%% ModelEvidence functions
+    function out = modelEvidenceFunction(ll,lfun)
+        out = exp(-lfun + ll);
+        out(isnan(out)) = 0;
+        out = out(:);

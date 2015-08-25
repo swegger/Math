@@ -1,4 +1,4 @@
-function [wm, wy, b, lapse, llikelihood, modelEvidence] = BLSbiasedLapse_fitter(x,y,varargin)
+function [wm, wy, b, lapse, llikelihood, lmodelEvidence] = BLSbiasedLapse_fitter(x,y,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
@@ -108,7 +108,7 @@ end
 if CrossValidationflg
     CrossValidation = varargin{CrossValidationnum+1};
 else
-    CrossValidation.On = 'No';
+    CrossValidation.Type = 'None';
 end
 
 if ModelEvidenceflg
@@ -126,7 +126,7 @@ end
 
 % Set up cross validation
 switch CrossValidation.Type
-    case 'None'
+    case {'None','none'}
         % No cross validation, fit all the data
         xfit{1} = x;
         yfit{1} = y;
@@ -292,7 +292,7 @@ for ii = 1:length(xfit)
     wP_ini = IC(2);
     b_ini = IC(3);
     lapse_ini = IC(4);
-    [lparams, llike] = eval(minimizer);
+    [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
     
     wm(ii) = lparams(1);
     wy(ii) = lparams(2);
@@ -310,16 +310,24 @@ for ii = 1:length(xfit)
     
     switch ModelEvidence.method
         case 'Integration'
-            
+            % Numerical integration of the likelihood function across
+            % different parameter values.
             functionHandle = @(P)(modelEvidenceFunction(llikelihood(ii),BLSvalidant(P)));
-            modelEvidence(ii) = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions,'OpenMind',ModelEvidence.OpenMind);
+            modelEvidence = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions,'OpenMind',ModelEvidence.OpenMind);
+            lmodelEvidence(ii) = log(modelEvidence) - llikelihood(ii);      % log model evidence
             
         case 'UniformApproximation'
             error('UniformApproximation method for model evidence not yet supported!')
+            
         case 'GaussianApproximation'
-            error('GaussianApproximation method for model evidence not yet supported!')
+            % Use Laplace's method to estimate the integral over the
+            % parameters via a Gaussian with mu at the ML fit and
+            % covariance from the Hessian at the ML fit.
+            error('Gaussian approximation method for model evidence not yet supported!')
+            %lmodelEvidence(ii) = -llikelihood(ii) + log(1/prod(diff(ModelEvidence.paramLimits,1,2))) + length(lparams)/2*log(2*pi) - log(det(-hessian))/2;  % log model evidence <- this hessian isn't right... its the hessian of ln(p(D|p,M))
+            
         case 'none'
-            modelEvidence(ii) = NaN;
+            lmodelEvidence(ii) = NaN;
             
         otherwise
             error(['Model evidence calculation method ' ModelEvidence.method ' not recognized!'])
@@ -423,6 +431,7 @@ if iscell(N)
     %     end
     
     logLi = nan(length(N),length(wm));
+    M = repmat(M,[1 1 length(wm)]);
     for i = 1:length(N)
         n = N{i};
         
@@ -456,7 +465,7 @@ if iscell(N)
         end
         X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
-        M = repmat(M,[1 1 length(wm)]);
+        %M = repmat(M,[1 1 length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
@@ -715,6 +724,7 @@ if iscell(N)
 for i = 1:length(N)
     logLik{i} = nan(length(wm),ceil(length(x{i})/batchsize));
 end
+M = repmat(M,[1 1 length(wm)]);
 logL = zeros(length(wm),1);
 for i = 1:length(N)
     n = N{i};
@@ -754,7 +764,6 @@ for i = 1:length(N)
         end
         X = repmat(xtemp',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(ytemp',[size(fBLS,1), 1, length(wm)]);
-        M = repmat(M,[1 1 length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
