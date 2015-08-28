@@ -326,7 +326,7 @@ for ii = 1:length(xfit)
             error('Gaussian approximation method for model evidence not yet supported!')
             %lmodelEvidence(ii) = -llikelihood(ii) + log(1/prod(diff(ModelEvidence.paramLimits,1,2))) + length(lparams)/2*log(2*pi) - log(det(-hessian))/2;  % log model evidence <- this hessian isn't right... its the hessian of ln(p(D|p,M))
             
-        case 'none'
+        case {'None','none'}
             lmodelEvidence(ii) = NaN;
             
         otherwise
@@ -771,7 +771,7 @@ for i = 1:length(N)
         %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
-        p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
+        p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -permute(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3),[1 2 4 3])./(2.*WM.^2.*X.^2) );
         integrand = p_y_take_fBLS.*p_m_take_x;
         
         for ii = 1:length(wm)

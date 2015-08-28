@@ -215,13 +215,13 @@ for ii = 1:length(xfit)
     switch FitType
         case 'integral'
             % Use integral
-            minimizant = @(p)logLikelihood(p(1),p(2),p(3),N,xfit{ii},yfit{ii},xmin,xmax);
-            validant = @(p)logLikelihood(p(1),p(2),p(3),N,xval{ii},yval{ii},xmin,xmax);
+            minimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
+            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
             
         case 'trapz'
             % Use trapz
-            minimizant = @(p)logLikelihoodTRAPZ(p(1),p(2),p(3),N,m,xfit{ii},yfit{ii});
-            validant = @(p)logLikelihoodTRAPZ(p(1),p(2),p(3),N,m,xval{ii},yval{ii});
+            minimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
+            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
             
         case 'quad'
             % Use Simpson's quadrature
@@ -245,8 +245,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUAD(p(1),p(2),p(3),p(4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            validant = @(p)logLikelihoodQUAD(p(1),p(2),p(3),p(4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            minimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
@@ -270,8 +270,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUADbatch(p(1),p(2),p(3),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,batchsize);
-            validant = @(p)logLikelihoodQUADbatch(p(1),p(2),p(3),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,batchsize);
+            minimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
@@ -279,8 +279,8 @@ for ii = 1:length(xfit)
             m = 0:dx:2*xmax;
             l = length(m);
             
-            minimizant = @(p)logLikelihoodQUADnested(p(1),p(2),p(3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            validant = @(p)logLikelihoodQUADnested(p(1),p(2),p(3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
+            minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
+            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
@@ -532,7 +532,7 @@ else
     
 end
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,N,x,y,xmin,xmax,dx,M,m,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
@@ -542,7 +542,6 @@ function logL = logLikelihoodQUADbatch(wm,wy,b,N,x,y,xmin,xmax,dx,M,m,batchsize)
 %
 %%
 
-error('Lapse model not yet supported for FitType = "quad_batch"')
 % Determine if different number of Ns are used
 if iscell(N)
 %     % Create measument matrix
@@ -559,7 +558,67 @@ if iscell(N)
 %         M(:,j) = [Mtemp{j}(:)];
 %     end
     
-    % For measurement number condition, find likelihood
+%     % For measurement number condition, find likelihood
+%     for i = 1:length(N)
+%         n = N{i};
+%         
+%         for k = 1:ceil(length(x{i})/batchsize)
+%             if length(x{i}) <= (k-1)*batchsize+batchsize
+%                 xtemp = x{i}((k-1)*batchsize+1:end);
+%                 ytemp = y{i}((k-1)*batchsize+1:end);
+%             else
+%                 xtemp = x{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
+%                 ytemp = y{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
+%             end
+% %             if xmin-5*wm*xmin < 0
+% %                 m = 0:dx:xmax+5*wm*xmax;
+% %             else
+% %                 m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
+% %             end
+% %             
+% %             if n*length(m)^n > 4000000
+% %                 error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
+% %             end
+%             
+%             % Set up Simpson's nodes
+%             w = ones(1,l);
+%             h = (m(end)-m(1))/l;
+%             w(2:2:l-1) = 4;
+%             w(3:2:l-1) = 2;
+%             w = w*h/3;
+%             
+%             W = w(:);
+%             for j = 2:n
+%                 W = W*w;
+%                 W = W(:);
+%             end
+% 
+%             
+%             method_opts.type = 'quad';
+%             method_opts.dx = dx;
+%             f = ScalarBayesEstimators(M(1:l^n,1:n),wm,xmin,xmax,'method',method_opts);
+%             X = repmat(xtemp',numel(f),1);
+%             Y = repmat(ytemp',numel(f),1);
+%             f = repmat(f,1,size(X,2));
+%             
+%             p_y_take_f = (1./sqrt(2.*pi.*wy.^2.*f.^2)) .* exp( -(Y - (f+b)).^2./(2.*wy.^2.*f.^2) );
+%             p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wm.^2.*X.^2) );
+%             integrand = p_y_take_f.*p_m_take_x;
+%             
+%             likelihood = W(1:l^n)'*integrand;
+%             
+%             logLik(i,k) = -sum(log(likelihood));
+%             
+%         end
+%     end
+%     logL = sum(reshape(logLik,numel(logLik),1));
+
+    
+    for i = 1:length(N)
+        logLik{i} = nan(length(wm),ceil(length(x{i})/batchsize));
+    end
+    M = repmat(M,[1 1 length(wm)]);
+    logL = zeros(length(wm),1);
     for i = 1:length(N)
         n = N{i};
         
@@ -571,15 +630,6 @@ if iscell(N)
                 xtemp = x{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
                 ytemp = y{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
             end
-%             if xmin-5*wm*xmin < 0
-%                 m = 0:dx:xmax+5*wm*xmax;
-%             else
-%                 m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-%             end
-%             
-%             if n*length(m)^n > 4000000
-%                 error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
-%             end
             
             % Set up Simpson's nodes
             w = ones(1,l);
@@ -593,27 +643,39 @@ if iscell(N)
                 W = W*w;
                 W = W(:);
             end
-
             
+            % Lapse Model
+            uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
+            lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
+            
+            % BLS model
             method_opts.type = 'quad';
             method_opts.dx = dx;
-            f = ScalarBayesEstimators(M(1:l^n,1:n),wm,xmin,xmax,'method',method_opts);
-            X = repmat(xtemp',numel(f),1);
-            Y = repmat(ytemp',numel(f),1);
-            f = repmat(f,1,size(X,2));
+            estimator.type = 'weightedMean';
+            estimator.weights = ones(1,n)/n;
+            fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
+            for ii = 1:length(wm)
+                fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+            end
+            X = repmat(xtemp',[size(fBLS,1), 1, length(wm)]);
+            Y = repmat(ytemp',[size(fBLS,1), 1, length(wm)]);
+            fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
+            WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+            WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+            B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+            %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
             
-            p_y_take_f = (1./sqrt(2.*pi.*wy.^2.*f.^2)) .* exp( -(Y - (f+b)).^2./(2.*wy.^2.*f.^2) );
-            p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wm.^2.*X.^2) );
-            integrand = p_y_take_f.*p_m_take_x;
+            p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
+            p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -permute(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3),[1 2 4 3])./(2.*WM.^2.*X.^2) );
+            integrand = p_y_take_fBLS.*p_m_take_x;
             
-            likelihood = W(1:l^n)'*integrand;
-            
-            logLik(i,k) = -sum(log(likelihood));
-            
+            for ii = 1:length(wm)
+                likelihood = (1-lambda(lapse(ii),Y,X)).*W(1:l^n)'*integrand(:,:,ii) + lambda(lapse(ii),Y,X).*uni(pmin,pmax,Y(:,:,ii));
+                logLik{i}(ii,k) = -sum(log(likelihood),2);
+            end
         end
+        logL = logL + sum(logLik{i},2);
     end
-    logL = sum(reshape(logLik,numel(logLik),1));
-
 else
     
 %     if xmin-5*wm*xmin < 0
