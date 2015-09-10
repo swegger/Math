@@ -288,10 +288,17 @@ for ii = 1:length(xfit)
     lb = [0 0 -Inf 0];
     ub = [1 1 Inf 1];
     minimizer = 'fmincon(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
-    wM_ini = IC(1);
-    wP_ini = IC(2);
-    b_ini = IC(3);
-    lapse_ini = IC(4);
+    if ii == 1
+        wM_ini = IC(1);
+        wP_ini = IC(2);
+        b_ini = IC(3);
+        lapse_ini = IC(4);
+    else
+        wM_ini = wm(ii-1);
+        wP_ini = wp(ii-1);
+        b_ini = b(ii-1);
+        lapse_ini = lapse(ii-1);
+    end
     [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
     
     wm(ii) = lparams(1);
