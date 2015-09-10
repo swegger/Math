@@ -132,7 +132,6 @@ switch CrossValidation.Type
         yfit{1} = y;
         xval{1} = x;
         yval{1} = y;
-        validations = 0;
         
     case 'FitFraction'
         % Fit a fraction of the data and validate on the remaining
@@ -161,7 +160,6 @@ switch CrossValidation.Type
                 yval{ii} = y(valvec);
             end
         end
-        validations = CrossValidation.Iter;
         
     case 'LNOCV'
         % Leave N out crossvalidation: fit on all but N, validate on N,
@@ -206,7 +204,6 @@ switch CrossValidation.Type
                 end
             end
         end   
-        validations = ii;
         
     otherwise
         error(['Cross validation type ' CrossValidation.Type ' not recognized!'])
@@ -216,7 +213,7 @@ end
 OPTIONS = optimset('Display','iter');
 
 for ii = 1:length(xfit)
-    disp(['Fit # ' num2str(ii) ' of ' num2str(validations)])
+    disp(['Fit # ' num2str(ii) ' of ' num2str(length(xfit))])
     switch FitType
         case 'integral'
             % Use integral
