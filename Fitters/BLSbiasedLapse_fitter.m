@@ -300,7 +300,12 @@ for ii = 1:length(xfit)
         b_ini = b(ii-1);
         lapse_ini = lapse(ii-1);
     end
-    [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
+    try
+        [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
+    catch ME
+        save('/om/user/swegger/BLSbiasedLapse_fitterERROR')
+        rethrow(ME)
+    end
     
     wm(ii) = lparams(1);
     wy(ii) = lparams(2);
