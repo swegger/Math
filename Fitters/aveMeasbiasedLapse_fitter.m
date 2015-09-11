@@ -295,7 +295,7 @@ for ii = 1:length(xfit)
         lapse_ini = IC(4);
     else
         wM_ini = wm(ii-1);
-        wP_ini = wp(ii,1);
+        wP_ini = wy(ii,1);
         b_ini = b(ii-1);
         lapse_ini = lapse(ii-1);
     end
