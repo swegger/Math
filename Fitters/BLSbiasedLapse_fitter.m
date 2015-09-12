@@ -124,7 +124,7 @@ if nargin < 3
     error('Not enought input arguments!')
 end
 
-% Set up cross validation
+%% Set up cross validation
 switch CrossValidation.Type
     case {'None','none'}
         % No cross validation, fit all the data
@@ -182,8 +182,21 @@ switch CrossValidation.Type
                         xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
                         yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
                     end
+                    xfitsz{ii}(i,:) = size(xfit{ii}(i,:));
                 end
             end
+            iikeep = true(size(1:ceil(length(x{i})/CrossValidation.N)));
+            for ii = 1:
+                xfitu = unique(xfitsz{ii});
+                if size(xfitu,1) > 1
+                    iikeep(ii) = false;
+                end
+            end
+            xfit = xfit(iikeep);
+            yfit = yfit(iikeep);
+            xval = xval(iikeep);
+            
+                    
             
         else
             for ii = 1:ceil(length(x)/CrossValidation.N)
