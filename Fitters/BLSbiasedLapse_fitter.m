@@ -186,7 +186,7 @@ switch CrossValidation.Type
                 end
             end
             iikeep = true(size(1:ceil(length(x{i})/CrossValidation.N)));
-            for ii = 1:
+            for ii = 1:ceil(length(x{i})/CrossValidation.N)
                 xfitu = unique(xfitsz{ii});
                 if size(xfitu,1) > 1
                     iikeep(ii) = false;
@@ -195,8 +195,6 @@ switch CrossValidation.Type
             xfit = xfit(iikeep);
             yfit = yfit(iikeep);
             xval = xval(iikeep);
-            
-                    
             
         else
             for ii = 1:ceil(length(x)/CrossValidation.N)
