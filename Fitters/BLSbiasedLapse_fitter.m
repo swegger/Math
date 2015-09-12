@@ -182,19 +182,20 @@ switch CrossValidation.Type
                         xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
                         yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
                     end
-                    xfitsz{ii}(i,:) = size(xfit{ii}(i,:));
+                    xfitsz{ii}(i,:) = size(xfit{ii}{i});
                 end
             end
             iikeep = true(size(1:ceil(length(x{i})/CrossValidation.N)));
             for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                xfitu = unique(xfitsz{ii});
-                if size(xfitu,1) > 1
+                xfitu = unique(xfitsz{ii},'rows');
+                if any(xfitu(:) == 0)
                     iikeep(ii) = false;
                 end
             end
             xfit = xfit(iikeep);
             yfit = yfit(iikeep);
             xval = xval(iikeep);
+            yval = yval(iikeep);
             
         else
             for ii = 1:ceil(length(x)/CrossValidation.N)
