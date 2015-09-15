@@ -22,7 +22,8 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %           estimator_opts.type = 'BLS'
 %               Bayes least-squares; default.
 %           estimator_opts.type = 'ObsAct'
-%               Observer-Actor model. TODO
+%               Observer-Actor model. User must supply the weber fraction
+%               on production in the estimator_opts.wp
 %
 %   e = ScalarBayesEstimator(m,wm,xmin,xmax,'prior',prior_opts)
 %       Computes the BLS estimate using a prior specified by the structure
@@ -71,9 +72,9 @@ addRequired(inputs,'m');
 addRequired(inputs,'wm');
 addRequired(inputs,'xmin');
 addRequired(inputs,'xmax');
-addParamValue(inputs,'method',method_opts,@isstruct);
-addParamValue(inputs,'estimator',estimator_opts,@isstruct);
-addParamValue(inputs,'prior',prior_opts,@isstruct);
+addParameter(inputs,'method',method_opts,@isstruct);
+addParameter(inputs,'estimator',estimator_opts,@isstruct);
+addParameter(inputs,'prior',prior_opts,@isstruct);
 
 parse(inputs,m,wm,xmin,xmax,varargin{:})
 
@@ -170,6 +171,91 @@ switch estimator.type
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 
                 e = numerator./denominator;
+        end
+        
+    case 'ObsAct'
+        wp = estimator.wp;
+        switch method.type
+            case 'integral'
+                N = size(m,2);
+                fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
+                for i = 1:size(m,1)
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wp.^2);
+                end
+                
+            case 'trapz'
+                % Number of measurements
+                N = size(m,2);
+                
+                % Create x-vector
+                dx = method.dx;
+                x = xmin:dx:xmax;
+                x = reshape(x,[1 1 1 length(x)]);
+                
+                % Reshape measurements for processing
+                M = permute(m,[2 3 1]);
+                M = reshape(m,1,1,1,length(x));
+                x = repmat(x,size(m,1),1,size(m,3));
+                
+                % Generate estimate
+                likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
+                e = trapz(x.*likelihood,4)./trapz(likelihood,4);
+                e = permute(e,[2 1])/(1+wp.^2);
+                
+            case 'quad'
+                % Number of measurements
+                N = size(m,2);
+                
+                % Create x-vector
+                dx = method.dx;
+                x = xmin:dx:xmax;
+                
+                % Create Simpson's nodes
+                l = length(x);
+                h = (xmax - xmin)/l;
+                w = ones(1,l);
+                w(2:2:l-1) = 4;
+                w(3:2:l-1) = 2;
+                w = w*h/3;
+                
+                % Reshape measurements for processing
+                M = permute(m,[2 3 1]);
+                M = repmat(M,[1,1,1,l]);
+                x = reshape(x,[1 1 1 l]);
+                X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                
+                % Generate estimate
+                w = reshape(w,[1 1 1 l]);
+                w = repmat(w,[1 1 size(m,1) 1]);
+                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+%                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                e = permute(e,[3 2 1])/(1+wp.^2);
+                
+            case 'MonteCarlo'
+                % Set up integration variables
+                options.N = method.N;
+                numeratorFun = @(x,m)(MonteCarloIntegrand_numerator(x,m,wm));       % Numerator of BLS funciton
+                denominatorFun = @(x,m)(MonteCarloIntegrand_denominator(x,m,wm));    % Denominator of BLS function
+                
+                % Find the numerator and denominator of the BLS function
+                numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
+                denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
+                
+                e = numerator./denominator/(1+wp.^2);
+                
+            case 'MonteCarlo_batch'
+                % Set up integration variables
+                options.N = method.N;
+                options.batch_sz = method.batch_sz;
+                numeratorFun = @(x,m)(MonteCarloIntegrand_numerator(x,m,wm));       % Numerator of BLS funciton
+                denominatorFun = @(x,m)(MonteCarloIntegrand_denominator(x,m,wm));    % Denominator of BLS function
+                
+                % Find the numerator and denominator of the BLS function
+                numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
+                denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
+                
+                e = numerator./denominator/(1+wp.^2);
         end
         
     case 'weightedMean'
