@@ -16,6 +16,7 @@ function [tp, probTp, varargout] = ProbTp(ts,wm,wp,N,dt,varargin)
 % Defaults
 method_opts_default.dx = 0.01;
 tpvec_default = 200:50:1400;
+estimator_default.type = 'BLS';
 
 % Parse inputs
 p = inputParser;
@@ -32,7 +33,7 @@ addParameter(p,'trials',1000);
 addParameter(p,'integrationMethod','quad');
 addParameter(p,'options',NaN);
 addParameter(p,'tpvec',tpvec_default);
-
+addParameter(p,'estimator',estimator_default)
 
 parse(p,ts,wm,wp,N,dt,varargin{:})
 
@@ -49,6 +50,7 @@ trials = p.Results.trials;
 integrationMethod = p.Results.integrationMethod;
 options = p.Results.options;
 tpvec = p.Results.tpvec;
+estimator = p.Results.estimator;
 
 if isnan(Support)
     tsmin = min(ts);
@@ -130,7 +132,7 @@ switch method
             tm = ts(i)*ones(trials,N) + noise;
             method_opts.type = 'quad';
             method_opts.dx = dt;
-            BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts);
+            BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
             
             tp = [tp; BLS + wp*BLS.*randn(size(BLS))];
             

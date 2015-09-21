@@ -174,13 +174,13 @@ switch estimator.type
         end
         
     case 'ObsAct'
-        wp = estimator.wp;
+        wy = estimator.wy;
         switch method.type
             case 'integral'
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wp.^2);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2);
                 end
                 
             case 'trapz'
@@ -200,7 +200,7 @@ switch estimator.type
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1])/(1+wp.^2);
+                e = permute(e,[2 1])/(1+wy.^2);
                 
             case 'quad'
                 % Number of measurements
@@ -230,7 +230,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1])/(1+wp.^2);
+                e = permute(e,[3 2 1])/(1+wy.^2);
                 
             case 'MonteCarlo'
                 % Set up integration variables
@@ -242,7 +242,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator/(1+wp.^2);
+                e = numerator./denominator/(1+wy.^2);
                 
             case 'MonteCarlo_batch'
                 % Set up integration variables
@@ -255,7 +255,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator/(1+wp.^2);
+                e = numerator./denominator/(1+wy.^2);
         end
         
     case 'weightedMean'

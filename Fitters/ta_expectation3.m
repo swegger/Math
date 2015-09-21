@@ -84,6 +84,32 @@ switch method
                         
                 end
                 
+            case 'ObsAct'
+                switch integrationMethod
+                    case 'integral'
+                        error('integrationMethod "integral" not yet supported!')
+                    case 'quad'
+                        functionHandle = @(tm,ts)(ObsAct_integrandFunction_quad(tm,ts,tsmin,tsmax,wm,dt,N,wp));
+                        %method_options.dx = 0.01;
+                        ta = ndintegrate(functionHandle,repmat([tsmin-2*wm*tsmin tsmax+3*wm*tsmax],N,1),'method','quad','options',method_options,'ExtraVariables',ts);
+                        
+                    case 'MonteCarlo'
+                        functionHandle = @(tm,ts)(ObsAct_integrandFunction_MonteCarlo(tm,ts,tsmin,tsmax,wm,method_options.N,N,wp));
+                        %method_options.N = 100000;
+                        ta = ndintegrate(functionHandle,repmat([tsmin-3*wm*tsmin tsmax+3*wm*tsmax],N,1),'method','MonteCarlo','options',method_options,'ExtraVariables',ts);
+                        %error('integrationMethod "MonteCarlo" not yet supported!')
+                        
+                    case 'MonteCarlo_batch'
+                        functionHandle = @(tm,ts)(ObsAct_integrandFunction_MonteCarlo_batch(tm,ts,tsmin,tsmax,wm,method_options.N,method_options.batch_sz,N,wp));
+                        %method_options.N = 100000;
+                        ta = ndintegrate(functionHandle,repmat([tsmin-3*wm*tsmin tsmax+3*wm*tsmax],N,1),'method','MonteCarlo_batch','options',method_options,'ExtraVariables',ts);
+                        
+                    otherwise
+                        error(['integrationMethod ' integrationMethod ' not recognized!'])
+                        
+                end
+                
+                
             case 'gBLS'
                 switch integrationMethod
                     case 'integral'
@@ -153,6 +179,37 @@ switch method
                 varargout{2} = v;
                 varargout{3} = rmse;
             
+            case 'ObsAct'
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    estimator.type = 'ObsAct';
+                    estimator.wy = wp;
+                    BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
+                    
+                    BLS = BLS + wp*BLS.*randn(size(BLS));
+                    
+                    errors(:,i) = BLS - ts(i);
+                    ta(i) = mean(BLS);
+                    ta_std(i) = std(BLS);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;                
+                
             case 'gBLS'
                 error('gBLS numerical simulation not yet supported!')
                 
@@ -234,6 +291,56 @@ method_opts.type = 'MonteCarlo_batch';
 method_opts.N = Npoints;
 method_opts.batch_sz = batch_sz;
 TA = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts);
+
+M = repmat(permute(tm,[2 3 1]),[1 1 1 size(ts,1)]);
+TS = repmat(permute(ts,[4 3 2 1]),[size(M,1) size(M,2) size(M,3) 1]);
+%p_tm_take_ts = ( (1./sqrt(2*pi)*wm*X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) )
+p_tm_take_ts = ( (1./sqrt(2*pi)/wm/TS(1,:,:,:)).^N .* exp( -(sum((TS-M).^2,1))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+%p_tm_take_ts = ( (1./sqrt(2*pi)/wm/TS(1,:,:,:)).^N .* exp( -(mmx('mult',permute(TS-M,[2 1 3 4]),TS-M))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+out = squeeze(permute(p_tm_take_ts,[3 4 1 2])) .* repmat(TA',[1 size(ts)]);
+
+% ObsAct
+% Simpson's quad
+function out = ObsAct_integrandFunction_quad(tm,ts,tsmin,tsmax,wm,dt,N,wy)
+
+method_opts.type = 'quad';
+method_opts.dx = dt;
+estimator.type = 'ObsAct';
+estimator.wy = wy;
+TA = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
+
+M = repmat(permute(tm,[2 3 1]),[1 1 1 size(ts,1)]);
+TS = repmat(permute(ts,[4 3 2 1]),[size(M,1) size(M,2) size(M,3) 1]);
+%p_tm_take_ts = ( (1./sqrt(2*pi)*wm*X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) )
+p_tm_take_ts = ( (1./sqrt(2*pi)./wm./TS(1,:,:,:)).^N .* exp( -(sum((TS-M).^2,1))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+%p_tm_take_ts = ( (1./sqrt(2*pi)/wm/TS(1,:,:,:)).^N .* exp( -(mmx('mult',permute(TS-M,[2 1 3 4]),TS-M))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+out = squeeze(permute(p_tm_take_ts,[3 4 1 2])) .* repmat(TA,[1 size(ts)]);
+
+% Monte Carlo integration
+function out = ObsAct_integrandFunction_MonteCarlo(tm,ts,tsmin,tsmax,wm,Npoints,N,wy)
+
+method_opts.type = 'MonteCarlo';
+method_opts.N = Npoints;
+estimator.type = 'ObsAct';
+estimator.wy = wy;
+TA = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
+
+M = repmat(permute(tm,[2 3 1]),[1 1 1 size(ts,1)]);
+TS = repmat(permute(ts,[4 3 2 1]),[size(M,1) size(M,2) size(M,3) 1]);
+%p_tm_take_ts = ( (1./sqrt(2*pi)*wm*X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) )
+p_tm_take_ts = ( (1./sqrt(2*pi)/wm/TS(1,:,:,:)).^N .* exp( -(sum((TS-M).^2,1))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+%p_tm_take_ts = ( (1./sqrt(2*pi)/wm/TS(1,:,:,:)).^N .* exp( -(mmx('mult',permute(TS-M,[2 1 3 4]),TS-M))./(2*wm.^2.*TS(1,:,:,:).^2) ) );
+out = squeeze(permute(p_tm_take_ts,[3 4 1 2])) .* repmat(TA',[1 size(ts)]);
+
+% Monte Carlo integration, in batch
+function out = ObsAct_integrandFunction_MonteCarlo_batch(tm,ts,tsmin,tsmax,wm,Npoints,batch_sz,N,wy)
+
+method_opts.type = 'MonteCarlo_batch';
+method_opts.N = Npoints;
+method_opts.batch_sz = batch_sz;
+estimator.type = 'ObsAct';
+estimator.wy = wy;
+TA = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
 
 M = repmat(permute(tm,[2 3 1]),[1 1 1 size(ts,1)]);
 TS = repmat(permute(ts,[4 3 2 1]),[size(M,1) size(M,2) size(M,3) 1]);
