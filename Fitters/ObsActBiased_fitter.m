@@ -298,8 +298,8 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(BLSminimizant, [wM_ini wP_ini b_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
-    ub = [1 1 Inf 1];
+    lb = [0 0 -Inf];
+    ub = [1 1 Inf];
     minimizer = 'fmincon(BLSminimizant, [wM_ini wP_ini b_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
