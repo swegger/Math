@@ -1,4 +1,4 @@
-function [llikelihood, lmodelEvidence] = aveMeasbiasedLapse_Validator(x,y,varargin)
+function [llikelihood, lmodelEvidence] = aveMeasbiasedLapse_Validator(x,y,wm,wy,b,lapse,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
