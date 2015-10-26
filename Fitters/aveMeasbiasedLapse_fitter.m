@@ -125,7 +125,7 @@ end
 
 %% Set up cross validation
 switch CrossValidation.Type
-    case 'None'
+    case {'None','none'}
         % No cross validation, fit all the data
         xfit{1} = x;
         yfit{1} = y;
