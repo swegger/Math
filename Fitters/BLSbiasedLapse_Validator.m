@@ -181,7 +181,7 @@ for ii = 1:length(x)
             
             BLSvalidant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,x,y,xmin,xmax,dx,m,batchsize);
     end
-    lparams = [wm, wp, b, lapse];
+    lparams = [wm, wy, b, lapse];
     llikelihood(ii) = BLSvalidant(lparams);
             
     
