@@ -1,4 +1,4 @@
-function [rate, time, rateVariance, r] = spikeTimes2Rate(spikeTimes,varargin)
+function [rate, time, rateVariance, r, mspikeCount, spikeCount] = spikeTimes2Rate(spikeTimes,varargin)
 %% spikeTimes2Rate
 %
 %   [rate, time] = spikeTimes2Rate(spikeTimes);
@@ -48,7 +48,7 @@ time = p.Results.time;
 
 
 % Collect times of all spikes
-allspikes = [spikeTimes{:}];
+allspikes = double([spikeTimes{:}]);
 
 % Determine the start and end times, if none supplied
 if isempty(time)
@@ -85,32 +85,36 @@ switch ComputeVariance
                 end
                 r = nan(size(time,1),length(spikeTimes));
                 rateVariance = nan(size(time,1),1);
+                mspikecount = nan(size(time,1),1);
+                spikeCount = nan(size(time));
                 
-            case {'Yes','yes','Y','y',1}
-                % Find rate by binning across trials
-%                 if size(time,2) > 1
-%                     error('Multiple time vector input for Histogram == Yes')
-%                 end
-                rate = histc(allspikes,time);
-                rate = 1/length(spikeTimes) * rate(:);
-                r = nan(size(time,1),length(spikeTimes));
-                rateVariance = nan(size(time,1),1);
                 
+            case {'Yes','yes','Y','y',1}                
                 % Calculate filter
                 t0 = 0:resolution:max(max(time))/2;
                 tvec = [-fliplr(t0(2:end)) t0];
                 f = Filter(tvec);
                 
                 % Find trial by trial rates
+                if size(time,2) == 1
+                    time = repmat(time,1,length(spikeTimes));
+                end
                 for i = 1:length(spikeTimes)
-                    counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
-                    spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                    if isempty(spikeTimes{i})
+                        spikeCount(:,i) = zeros(size(time(:,i)));
+                    else
+                        counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
+                        spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                    end
                 end
                 
                 % Calculate rate and variance
                 n = sum(~isnan(time),2);
-                rate = conv(sum(spikeCount,2)./n,f,'same');
-                rateVariance = sum( (r - repmat(rate,1,size(r,2))).^2 .* 1./(repmat(n,1,size(r,2))-1) ,2);
+                mspikeCount = sum(spikeCount,2)./n;
+                mspikeCount(isnan(mspikeCount)) = 0;
+                rate = conv(mspikeCount,f,'same');
+                r = nan(size(time,1),length(spikeTimes));
+                rateVariance = nan(size(time,1),1);
                 
             otherwise
                 error(['Histogram option ' Histogram ' not recognized!'])
@@ -131,67 +135,51 @@ switch ComputeVariance
                         Spikes = repmat(spikeTimes{i},size(time,1),1);
                         r(:,i) = sum( Filter(Time-Spikes) , 2);
                          
-%                         r(:,i) = zeros(size(time,1),1);
-%                         for j = 1:length(spikeTimes{i})
-%                             r(:,i) = r(:,i) + Filter(time(:,i) - spikeTimes{i}(j));
-%                         end
                     end
                 end
                 % Calculate rate and variance
                 n = sum(~isnan(time),2);
                 rate = nansum(r.*1./repmat(n,1,size(r,2)),2);
                 rateVariance = nansum( (r - repmat(rate,1,size(r,2))).^2 ,2) ./(n-1);
-                %rate = mean(r,2);
-                %rateVariance = var(r,[],2);
-                
-%                 THIS DOESN'T WORK RIGHT
-%                 % Find all the spikes that aren't rejected by time matrix
-%                 
-%                 allspikes2 = [];
-%                 for i = 1:length(spikeTimes)
-%                     tcut = time(find(isnan(time(:,i)),1)-1,i);
-%                     if ~isempty(tcut)
-%                         allspikes2 = [allspikes2 spikeTimes{i}(spikeTimes{i} <= tcut)];
-%                     else
-%                         allspikes2 = [allspikes2 spikeTimes{i}];
-%                     end
-%                 end
-%                 
-%                 % Calculate the rate
-%                 Time = min(time(:)):resolution:(size(time,1)-1)*resolution;
-%                 for i = 1:length(Time)
-%                     rate(i,1) = sum(Filter(Time(i)-allspikes2));
-%                 end
-%                 n = sum(~isnan(time),2);
-%                 rate = rate./n;
-%                 
-%                 % Calculate the variance
-%                 for i = 1:length(Time)
-%                     rateVariance(i,1) = sum( (Filter(Time(i)-allspikes2) - rate(i)).^2 );
-%                 end
-%                 rateVariance = rateVariance./(n-1);
-                
-                
+                mspikecount = nan(size(time,1),1);
+                spikeCount = nan(size(time));               
                 
             case {'Yes','yes','Y','y',1}
-                % Find rate by binning across trials
-%                 if size(time,2) > 1
-%                     error('Multiple time vector input for Histogram == Yes')
-%                 end
                 % Calculate filter
                 t0 = 0:resolution:max(max(time))/2;
                 tvec = [-fliplr(t0(2:end)) t0];
                 f = Filter(tvec);
+                f = f(f > 10^-10);
                 
-                % Find trial by trial rates
+                % Find trial by trial rates and counts
+                if size(time,2) == 1
+                    time = repmat(time,1,length(spikeTimes));
+                end
+                if size(time,2) == 1
+                    time = repmat(time,1,length(spikeTimes));
+                end
                 for i = 1:length(spikeTimes)
+                    % Counts
+                    counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
+                    if isempty(counttemp)
+                        spikeCount(:,i) = zeros(size(time(:,i)));
+                    else
+                        spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                    end
+                    
+                    % Rates
                     rtemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
-                    r(:,i) = conv([rtemp(:); zeros(sum(isnan(time(:,i))),1)],f,'same');
+                    if isempty(rtemp)
+                        r(:,i) = zeros(size(time,1),1);
+                    else
+                        r(:,i) = [conv(rtemp(:),f,'same'); nan(sum(isnan(time(:,i))),1)];
+                    end
                 end
                 
                 % Calculate rate and variance
                 n = sum(~isnan(time),2);
-                rate = nansum(r.*1./repmat(n,1,size(r,2)),2);
+                mspikeCount = sum(spikeCount,2)./n;
+                rate = conv(sum(spikeCount,2)./n,f,'same');         % Calculate rate from counts; note mean(r) and this can potentially give different outputs, if time vector has NaNs
                 rateVariance = sum( (r - repmat(rate,1,size(r,2))).^2 .* 1./(repmat(n,1,size(r,2))-1) ,2);
                 
             otherwise

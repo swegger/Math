@@ -1,4 +1,4 @@
-function [wm, wy, b, lapse, llikelihood, lmodelEvidence] = aveMeasbiasedLapse_fitter(x,y,varargin)
+function [llikelihood, lmodelEvidence] = aveMeasbiasedLapse_Validator(x,y,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
@@ -32,9 +32,6 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'LapseSupport')
             LapseSupportflg = 1;
             LapseSupportnum = i;
-        elseif strcmp(varargin{i},'CrossValidation')
-            CrossValidationflg = 1;
-            CrossValidationnum = i;
         elseif strcmp(varargin{i},'ModelEvidence')
             ModelEvidenceflg = 1;
             ModelEvidencenum = i;
@@ -104,12 +101,6 @@ else
     end
 end
 
-if CrossValidationflg
-    CrossValidation = varargin{CrossValidationnum+1};
-else
-    CrossValidation.Type = 'None';
-end
-
 if ModelEvidenceflg
     ModelEvidence = varargin{ModelEvidencenum+1};
     if ~isfield(ModelEvidence,'OpenMind')
@@ -123,118 +114,16 @@ if nargin < 3
     error('Not enought input arguments!')
 end
 
-%% Set up cross validation
-switch CrossValidation.Type
-    case 'None'
-        % No cross validation, fit all the data
-        xfit{1} = x;
-        yfit{1} = y;
-        xval{1} = x;
-        yval{1} = y;
-        
-    case 'FitFraction'
-        % Fit a fraction of the data and validate on the remaining
-        if ~isfield(CrossValidation,'Iter')
-            CrossValidation.Iter = 1;
-        end
-        for ii = 1:CrossValidation.Iter
-            if iscell(x)
-                for i = 1:length(x)
-                    [xfit{ii}{i} indx] = datasample(x{i},ceil(CrossValidation.FitPercent*length(x{i})),'Replace',false);
-                    yfit{ii}{i} = y{i}(indx);
-                    valvec = zeros(length(x{i}),1);
-                    valvec(indx) = 1;
-                    valvec = ~valvec;
-                    xval{ii} = x{i}(valvec);
-                    yval{ii} = y{i}(valvec);
-                end
-                
-            else
-                [xfit{ii} indx] = datasample(x,ceil(CrossValidation.FitPercent*length(x)),'Replace',false);
-                yfit{ii} = y(indx);
-                valvec = zeros(length(x),1);
-                valvec(indx) = 1;
-                valvec = ~valvec;
-                xval{ii} = x(valvec);
-                yval{ii} = y(valvec);
-            end
-        end
-    case 'LNOCV'
-        % Leave N out crossvalidation: fit on all but N, validate on N,
-        % repeat until all the data is processed
-        if iscell(x)
-            for i = 1:length(x)
-                for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                    if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                        indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                        fitvec = true(1,length(x{i}));
-                        fitvec(indx) = false; 
-                        valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
-                    else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
-                    end
-                    xfitsz{ii}(i,:) = size(xfit{ii}{i});
-                end
-            end
-            iikeep = true(size(1:ceil(length(x{i})/CrossValidation.N)));
-            for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                xfitu = unique(xfitsz{ii},'rows');
-                if any(xfitu(:) == 0)
-                    iikeep(ii) = false;
-                end
-            end
-            xfit = xfit(iikeep);
-            yfit = yfit(iikeep);
-            xval = xval(iikeep);
-            yval = yval(iikeep);
-            
-        else
-            for ii = 1:ceil(length(x)/CrossValidation.N)
-                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                    indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                    fitvec = true(1,length(x));
-                    fitvec(indx) = false;
-                    valvec = ~fitvec;
-                    xfit{ii} = x( fitvec );
-                    yfit{ii} = y( fitvec );
-                    xval{ii} = x( valvec );
-                    yval{ii} = y( valvec );
-                else
-                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N );
-                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N );
-                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end );
-                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end );
-                end
-            end
-        end     
-        
-    otherwise
-        error(['Cross validation type ' CrossValidation.Type ' not recognized!'])
-end
-
-%% Fit according to minimizer
-OPTIONS = optimset('Display','iter');
-
-
-for ii = 1:length(xfit)
-    disp(['Fit # ' num2str(ii) ' of ' num2str(length(xfit))])
+%% Test model predictions on data
+for ii = 1:length(x)
     switch FitType
         case 'integral'
             % Use integral
-            minimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
-            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
+            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,x,y,xmin,xmax);
             
         case 'trapz'
             % Use trapz
-            minimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
-            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
+            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,x,y);
             
         case 'quad'
             % Use Simpson's quadrature
@@ -258,8 +147,7 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
@@ -283,8 +171,7 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
-            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
@@ -292,43 +179,12 @@ for ii = 1:length(xfit)
             m = 0:dx:2*xmax;
             l = length(m);
             
-            minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
+            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,x,y,xmin,xmax,dx,m,batchsize);
     end
-    
-    %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
-    ub = [1 1 Inf 1];
-    minimizer = 'fmincon(minimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
-    if ii == 1
-        wM_ini = IC(1);
-        wP_ini = IC(2);
-        b_ini = IC(3);
-        lapse_ini = IC(4);
-    else
-        wM_ini = wm(ii-1);
-        wP_ini = wy(ii-1);
-        b_ini = b(ii-1);
-        lapse_ini = lapse(ii-1);
-    end
-    [lparams, llike] = eval(minimizer);
-    
-    wm(ii) = lparams(1);
-    wy(ii) = lparams(2);
-    b(ii) = lparams(3);
-    lapse(ii) = lparams(4);
-    
-    % Determine likelihood of the data
-    switch CrossValidation.Type
-        case 'None'
-            llikelihood(ii) = llike;
+    lparams = [wm, wp, b, lapse];
+    llikelihood(ii) = validant(lparams);
             
-        otherwise
-            llikelihood(ii) = validant(lparams);
-            
-    end
     
-    % Calculate model evidence
     switch ModelEvidence.method
         case 'Integration'
             % Numerical integration of the likelihood function across
@@ -347,7 +203,7 @@ for ii = 1:length(xfit)
             error('Gaussian approximation method for model evidence not yet supported!')
             %lmodelEvidence(ii) = -llikelihood(ii) + log(1/prod(diff(ModelEvidence.paramLimits,1,2))) + length(lparams)/2*log(2*pi) - log(det(-hessian))/2;  % log model evidence <- this hessian isn't right... its the hessian of ln(p(D|p,M))
             
-        case 'none'
+        case {'None','none'}
             lmodelEvidence(ii) = NaN;
             
         otherwise
@@ -355,6 +211,7 @@ for ii = 1:length(xfit)
     end
 
 end
+
 
 %% Function to be minimized
 function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
