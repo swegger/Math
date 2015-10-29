@@ -336,7 +336,7 @@ if iscell(N)
         lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
         
         % BLS model
-        method_opts.type = 'fminsearch';
+        method_opts.type = 'analytical';
         method_opts.dx = dx;
         estimator.type = 'MAP';
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));

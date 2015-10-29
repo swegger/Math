@@ -349,6 +349,20 @@ switch estimator.type
                     post = @(x)(posteriorMAP(x,m(i,:),wm,xmin,xmax));
                     e(i) = fminsearch(post,(xmax-xmin)/2+xmin);
                 end
+                
+            case 'analytical'
+                N = size(m,2);
+                e = mean(m,2) .* (-1 + sqrt(1 + 4*wm^2 .* mean(m.^2,2)./mean(m,2).^2)) / (2*wm^2);
+%                 if N == 1
+%                     e = m.*(-1+sqrt(1+4*wm.^2))./(2*wm.^2);
+%                 elseif N == 2
+%                     e = sum(m,2)./(4*wm^2) - sqrt( (sum(m,2)./(4*wm^2)).^2 - sum(m.^2,2)/(2*wm^2) );
+%                 else
+%                     error('N > 2 for analytical solution not yet supported!')
+%                 end
+                e(e < xmin) = xmin;
+                e(e > xmax) = xmax;
+                
             case 'integral'
                 error('Not yet supported!')
                 N = size(m,2);
