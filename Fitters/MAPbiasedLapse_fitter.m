@@ -298,7 +298,7 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
+    lb = [0.03 0 -Inf 0];
     ub = [1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
@@ -485,20 +485,20 @@ if iscell(N)
         method_opts.type = 'analytical';
         method_opts.dx = dx;
         estimator.type = 'MAP';
-        fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
+        fMAP = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
-            fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+            fMAP(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
-        X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
-        Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
+        X = repmat(x{i}',[size(fMAP,1), 1, length(wm)]);
+        Y = repmat(y{i}',[size(fMAP,1), 1, length(wm)]);
         %M = repmat(M,[1 1 length(wm)]);
-        fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
-        WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+        fMAP = repmat(permute(fMAP,[1 3 2]),[1,size(X,2), 1]);
+        WM = repmat(permute(wm(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
+        WY = repmat(permute(wy(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
+        B = repmat(permute(b(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
         %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
-        p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
+        p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fMAP.^2)) .* exp( -(Y - (fMAP+B)).^2./(2.*WY.^2.*fMAP.^2) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
         integrand = p_y_take_fBLS.*p_m_take_x;
         
@@ -510,108 +510,7 @@ if iscell(N)
     end
     logL = permute(sum(logLi,1),[2 1]);
     
-    % for ii = 1:length(wm)
-    %     wmii = wm(ii);
-    %     wyii = wy(ii);
-    %     bii = b(ii);
-    %     lapseii = lapse(ii);
-    %     for i = 1:length(N)
-    %         n = N{i};
-    %
-    %         if n*length(m)^n > 4000000
-    %             error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
-    %         end
-    %
-    %         % Set up Simpson's nodes
-    %         w = ones(1,l);
-    %         h = (m(end)-m(1))/l;
-    %         w(2:2:l-1) = 4;
-    %         w(3:2:l-1) = 2;
-    %         w = w*h/3;
-    %
-    %         W = w(:);
-    %         for j = 2:n
-    %             W = W*w;
-    %             W = W(:);
-    %         end
-    %
-    %         % Lapse Model
-    %         uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
-    %         lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
-    %
-    %         % BLS model
-    %         method_opts.type = 'quad';
-    %         method_opts.dx = dx;
-    %         fBLS = ScalarBayesEstimators(M(1:l^n,1:n),wmii,xmin,xmax,'method',method_opts);
-    %         X = repmat(x{i}',numel(fBLS),1);
-    %         Y = repmat(y{i}',numel(fBLS),1);
-    %         fBLS = repmat(fBLS,1,size(X,2));
-    %
-    %         p_y_take_fBLS = (1./sqrt(2.*pi.*wyii.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+bii)).^2./(2.*wyii.^2.*fBLS.^2) );
-    %         p_m_take_x = (1./sqrt(2.*pi.*wmii.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wmii.^2.*X.^2) );
-    %         integrand = p_y_take_fBLS.*p_m_take_x;
-    %
-    %         likelihood = (1-lambda(lapseii,Y,X)).*W(1:l^n)'*integrand + lambda(lapseii,Y,X).*uni(pmin,pmax,Y);
-    %
-    %         logLi(i) = -sum(log(likelihood));
-    %
-    %     end
-    %     logL(ii,:) = sum(logLi);
-    % end
-    
 else
-    
-    %     if xmin-5*wm*xmin < 0
-    %         m = 0:dx:xmax+5*wm*xmax;
-    %     else
-    %         m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-    %     end
-    
-    %     if N*length(m)^N > 4000000
-    %         error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
-    %     end
-    %
-    %      % Set up Simpson's nodes
-    %      l = length(m);
-    %      w = ones(1,l);
-    %      h = (m(end)-m(1))/l;
-    %      w(2:2:l-1) = 4;
-    %      w(3:2:l-1) = 2;
-    %      w = w*h/3;
-    %
-    %     W = w(:);
-    %     for i = 2:N
-    %         W = W*w;
-    %         W = W(:);
-    %     end
-    %
-    % %     Mtemp = cell(1,N);
-    % %     [Mtemp{:}] = ndgrid(m);
-    % %     M = zeros(l^N,N);
-    % %     for i = 1:N
-    % %         M(:,i) = [Mtemp{i}(:)];
-    % %     end
-    %
-    %
-    %     % Lapse Model
-    %     uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
-    %     lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
-    %
-    %     % BLS model
-    %     method_opts.type = 'quad';
-    %     method_opts.dx = dx;
-    %     fBLS = ScalarBayesEstimators(M(1:l^N,1:N),wm,xmin,xmax,'method',method_opts);
-    %     X = repmat(x',numel(fBLS),1);
-    %     Y = repmat(y',numel(fBLS),1);
-    %     fBLS = repmat(fBLS,1,size(X,2));
-    %
-    %     p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
-    %     p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)).^N .* exp( -sum((repmat(permute(M(1:l^N,1:N),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 N])).^2,3)./(2.*wm.^2.*X.^2) );
-    %     integrand = p_y_take_fBLS.*p_m_take_x;
-    %
-    %     likelihood = (1-lambda(lapse,Y,X)).*W(1:l^N)'*integrand + lambda(lapse,Y,X)*uni(pmin,pmax,Y);
-    %
-    %     logL = -sum(log(likelihood));
     
     
     if N*length(m)^N > 4000000
@@ -636,24 +535,24 @@ else
     uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
     lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
     
-    % BLS model
+    % MAP model
     method_opts.type = 'quad';
     method_opts.dx = dx;
     estimator.type = 'MAP';
-    fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
+    fMAP = nan(size(M(1:l^n,1:n),1),length(wm));
     for ii = 1:length(wm)
-        fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+        fMAP(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
     end
-    X = repmat(x',[size(fBLS,1), 1, length(wm)]);
-    Y = repmat(y',[size(fBLS,1), 1, length(wm)]);
+    X = repmat(x',[size(fMAP,1), 1, length(wm)]);
+    Y = repmat(y',[size(fMAP,1), 1, length(wm)]);
     M = repmat(M,[1 1 length(wm)]);
-    fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
-    WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+    fMAP = repmat(permute(fMAP,[1 3 2]),[1,size(X,2), 1]);
+    WM = repmat(permute(wm(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
+    WY = repmat(permute(wy(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
+    B = repmat(permute(b(:),[2 3 1]),[size(fMAP,1), size(X,2), 1]);
     %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     
-    p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
+    p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fMAP.^2)) .* exp( -(Y - (fMAP+B)).^2./(2.*WY.^2.*fMAP.^2) );
     p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
     integrand = p_y_take_fBLS.*p_m_take_x;
     
@@ -782,8 +681,8 @@ for i = 1:length(N)
         uni = @(pmin,pmax,p)(1/(pmax-pmin));        % Uniform distribution of productions on a lapse trial
         lambda = @(l,p,s)(l);                           % Lapse rate model as a function of sample and production times
         
-        % BLS model
-        method_opts.type = 'quad';
+        % MAP model
+        method_opts.type = 'analytical';
         method_opts.dx = dx;
         estimator.type = 'MAP';
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
@@ -852,7 +751,7 @@ else
 %             M(:,i) = [Mtemp{i}(:)];
 %         end
         
-        method_opts.type = 'quad';
+        method_opts.type = 'analytical';
         method_opts.dx = dx;
         estimator.type = 'MAP';
         fBLS = ScalarBayesEstimators(M(1:l^n,1:n),wm,xmin,xmax,'method',method_opts,'estimator',estimator);

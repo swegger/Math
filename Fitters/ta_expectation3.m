@@ -215,16 +215,16 @@ switch method
                     % Generate measuments of each ts
                     noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
                     tm = ts(i)*ones(trials,N) + noise;
-                    method_opts.type = 'fminsearch';
+                    method_opts.type = 'analytical';
                     method_opts.dx = dt;
                     estimator.type = 'MAP';
-                    BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
+                    MAP = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
                     
-                    BLS = BLS + wp*BLS.*randn(size(BLS));
+                    MAP = MAP + wp*MAP.*randn(size(MAP));
                     
-                    errors(:,i) = BLS - ts(i);
-                    ta(i) = mean(BLS);
-                    ta_std(i) = std(BLS);
+                    errors(:,i) = MAP - ts(i);
+                    ta(i) = mean(MAP);
+                    ta_std(i) = std(MAP);
                     
                     %waitbar(i/length(ts))
                 end
@@ -394,7 +394,7 @@ out = squeeze(permute(p_tm_take_ts,[3 4 1 2])) .* repmat(TA',[1 size(ts)]);
 % Simpson's quad
 function out = MAP_integrandFunction_quad(tm,ts,tsmin,tsmax,wm,dt,N)
 
-method_opts.type = 'fminsearch';
+method_opts.type = 'analytical';
 method_opts.dx = dt;
 estimator.type = 'MAP';
 TA = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
