@@ -1,11 +1,11 @@
 function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %% ScalarBayesEstimators
 %
-%   e = ScalarBayesEstimator(m,wm,xmin,xmax)
+%   e = ScalarBayesEstimators(m,wm,xmin,xmax)
 %       Computes the BLS estimates (e) of x, given a set of measurements
 %       (m). Assumes uniform prior over x between xmin and xmax
 %
-%   e = ScalarBayesEstimator(m,wm,xmin,xmax,'method',method_opts)
+%   e = ScalarBayesEstimators(m,wm,xmin,xmax,'method',method_opts)
 %       Computes the BLS estimate using the the method specifiied by
 %       method_opts.
 %           method_opts.type = 'integral'
@@ -17,7 +17,7 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %               Approximates the integral using Simpson's quadrature using
 %               the step size method_opts.dx
 %
-%   e = ScalarBayesEstimator(...,'estimator',estimator_opts)
+%   e = ScalarBayesEstimators(...,'estimator',estimator_opts)
 %       Computes the estimate specified by estimator_opts.type
 %           estimator_opts.type = 'BLS'
 %               Bayes least-squares; default.
@@ -25,12 +25,12 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %               Observer-Actor model. User must supply the weber fraction
 %               on production in the estimator_opts.wp
 %
-%   e = ScalarBayesEstimator(m,wm,xmin,xmax,'prior',prior_opts)
+%   e = ScalarBayesEstimators(m,wm,xmin,xmax,'prior',prior_opts)
 %       Computes the BLS estimate using a prior specified by the structure
 %       prior_opts.
 %           TODO: prior types
 %
-%   e = ScalarBayesEstimator(...,'estimator',estimator_opts)
+%   e = ScalarBayesEstimators(...,'estimator',estimator_opts)
 %       with
 %           estimator_opts.type = 'weightedMean'
 %       and
@@ -39,7 +39,7 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %       measurements according a set of weights.
 %           TODO: integral and trapz support
 %
-%   e = ScalarBayesEstimator(...,'estimator',estimator_opts)
+%   e = ScalarBayesEstimators(...,'estimator',estimator_opts)
 %       with
 %           estimator_opts.type = 'sequential'
 %       and
@@ -57,7 +57,7 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %       passes. Estimate is then calculated as the expected value of x(t). 
 %           TODO: integral and trapz support
 %
-%   NOTE: Requires mmx.mex to run all methods but 'integral'
+%   NOTE: Methods requiring mmx.mex are mostly obsolete.
 %
 %%
 
@@ -118,34 +118,75 @@ switch estimator.type
                 e = permute(e,[2 1]);
                 
             case 'quad'
-                % Number of measurements
-                N = size(m,2);
-                
-                % Create x-vector
-                dx = method.dx;
-                x = xmin:dx:xmax;
-                
-                % Create Simpson's nodes
-                l = length(x);
-                h = (xmax - xmin)/l;
-                w = ones(1,l);
-                w(2:2:l-1) = 4;
-                w(3:2:l-1) = 2;
-                w = w*h/3;
-                
-                % Reshape measurements for processing
-                M = permute(m,[2 3 1]);
-                M = repmat(M,[1,1,1,l]);
-                x = reshape(x,[1 1 1 l]);
-                X = repmat(x,[size(M,1) 1 size(M,3) 1]);
-                
-                % Generate estimate
-                w = reshape(w,[1 1 1 l]);
-                w = repmat(w,[1 1 size(m,1) 1]);
-                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
-%                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
-                e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                switch prior.type
+                    case 'uniform'
+                        % Number of measurements
+                        N = size(m,2);
+                        
+                        % Create x-vector
+                        dx = method.dx;
+                        x = xmin:dx:xmax;
+                        
+                        % Create Simpson's nodes
+                        l = length(x);
+                        h = (xmax - xmin)/l;
+                        w = ones(1,l);
+                        w(2:2:l-1) = 4;
+                        w(3:2:l-1) = 2;
+                        w = w*h/3;
+                        
+                        % Reshape measurements for processing
+                        M = permute(m,[2 3 1]);
+                        M = repmat(M,[1,1,1,l]);
+                        x = reshape(x,[1 1 1 l]);
+                        X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                        
+                        % Generate estimate
+                        w = reshape(w,[1 1 1 l]);
+                        w = repmat(w,[1 1 size(m,1) 1]);
+                        likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                        %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                        e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                        e = permute(e,[3 2 1]);
+                        
+                    case 'Gaussian'
+                        % Parameterize prior
+                        mu = prior.mu;
+                        sig = prior.sig;
+                        
+                        % Number of measurements
+                        N = size(m,2);
+                        
+                        % Create x-vector
+                        dx = method.dx;
+                        x = mu-3*sig:dx:mu+3*sig;
+                        
+                        % Create Simpson's nodes
+                        l = length(x);
+                        h = (xmax - xmin)/l;
+                        w = ones(1,l);
+                        w(2:2:l-1) = 4;
+                        w(3:2:l-1) = 2;
+                        w = w*h/3;
+                        
+                        % Reshape measurements for processing
+                        M = permute(m,[2 3 1]);
+                        M = repmat(M,[1,1,1,l]);
+                        x = reshape(x,[1 1 1 l]);
+                        X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                        P = 1/sqrt(2*pi*sig^2) * exp( -(X(1,:,:,:)-mu).^2/(2*sig^2));
+                        
+                        % Generate estimate
+                        w = reshape(w,[1 1 1 l]);
+                        w = repmat(w,[1 1 size(m,1) 1]);
+                        likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                        %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                        e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
+                        e = permute(e,[3 2 1]);
+                       
+                    otherwise
+                        error(['Prior ' prior.type ' not recognized!'])
+                end
                 
             case 'MonteCarlo'
                 % Set up integration variables
