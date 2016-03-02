@@ -25,6 +25,8 @@
 %
 %%
 
+error('This is not functional code!')
+
 % Defaults
 noiseModel_default.type = 'none';
 
