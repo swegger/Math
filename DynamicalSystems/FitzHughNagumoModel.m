@@ -21,12 +21,12 @@ dt = t(2)-t(1);
 for ti = 1:length(t)
     if ti == 1
         du(ti) = (u0 - u0.^3/3 - w0 + I(ti) + a*randn)*dt;
-        dw(ti) = (epsilon(ti)*(b(ti,1) + b(ti,2)*u0 - w0))*dt;
+        dw(ti) = (epsilon(ti)*(b(ti,1) + b(ti,2)*u0 - w0) + a*randn)*dt;
         u(ti) = u0;
         w(ti) = w0;
     else
-        du(ti) = (u(ti-1) - u(ti-1).^3/3 - w(ti-1) + I(ti) +a*randn)*dt;
-        dw(ti) = (epsilon(ti)*(b(ti,1) + b(ti,2)*u(ti-1) - w(ti-1)))*dt;
+        du(ti) = (u(ti-1) - u(ti-1).^3/3 - w(ti-1) + I(ti) + a*randn)*dt;
+        dw(ti) = (epsilon(ti)*(b(ti,1) + b(ti,2)*u(ti-1) - w(ti-1)) + a*randn)*dt;
         u(ti) = u(ti-1) + du(ti);
         w(ti) = w(ti-1) + dw(ti);
     end

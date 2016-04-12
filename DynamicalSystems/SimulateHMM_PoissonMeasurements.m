@@ -7,37 +7,54 @@
 
 %% Parameters
 % General
-N = 2;              % Dimensionality of the system
-M = 3;            % Measurement dimensionality
+N = 1;              % Dimensionality of the system
+M = 1;            % Measurement dimensionality
 T = 1000;           % Total number of time-stamps
-trials = 5;       % Total number of trials
+trials = 5000;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-A = [0 -1; 1 0];        % Deterministic portion
-SigT = [0.1 0; 0 0.1];      % Transition noise covariance
+A = -1;%[0 -1; 1 0];        % Deterministic portion
+SigT = 0.1;%[0.1 0; 0 0.1];      % Transition noise covariance
 tau = 100;
+
+% For fitting
+BetaSize = 100;
+omega = linspace(0,2*pi,BetaSize);
+BasisN = 10;
+psi = BasisN/4*ones(1,BasisN);
+phi = (0:pi/2:BasisN*pi/2);%linspace(0,2*pi,BasisN);
+for i = 1:BasisN
+    BasisSet.k(i,:) = zeros(1,length(omega));
+    q = omega > (-pi/2 + phi(i))/psi(i) & omega < (pi/2 + phi(i))/psi(i);
+    BasisSet.k(i,q) = ( cos( omega(q)*psi(i) - phi(i) ) );
+end
+BasisSet.h = BasisSet.k;
 
 % Measurement model
 mu_c = 0;
-BetaSize = 100;
-BetaParams = rand(N,M)/2;
-Beta = zeros(BetaSize,N,M);
-for i = 1:N
-    for j = 1:M
-        Beta(:,i,j) = exp(-BetaParams(i,j)*(0:BetaSize-1))/sum(exp(-BetaParams(i,j)*(0:BetaSize-1)));
-    end
-end
-Beta = flipud(Beta);
-%Beta = reshape(Beta,[BetaSize*N, M]);
-GammaSize = 100;
-GammaParams = rand(M,1);
-Gamma = repmat((0:GammaSize-1)',[1, M]);
-for j = 1:M
-    Gamma(:,j) = -exp(-GammaParams(j)*Gamma(:,j))/sum(exp(-GammaParams(j)*Gamma(:,j)));
-end
-Gamma = flipud(Gamma);
-%SigM = 0.01.*diag(1:M);       % Measurement noise covariance
+Beta = 0.01*flipud(BasisSet.k(2,:)');
+Gamma = -0.005*flipud(BasisSet.h(1,:)');
+% mu_c = 0;
+% BetaParams = rand(N,M)/2;
+% Beta = zeros(BetaSize,N,M);
+% for i = 1:N
+%     for j = 1:M
+%         Beta(:,i,j) = exp(-BetaParams(i,j)*(0:BetaSize-1))/sum(exp(-BetaParams(i,j)*(0:BetaSize-1)));
+%     end
+% end
+% Beta = flipud(Beta);
+% %Beta = reshape(Beta,[BetaSize*N, M]);
+% GammaSize = 100;
+% GammaParams = rand(M,1);
+% Gamma = repmat((0:GammaSize-1)',[1, M]);
+% for j = 1:M
+%     Gamma(:,j) = -exp(-GammaParams(j)*Gamma(:,j))/sum(exp(-GammaParams(j)*Gamma(:,j)));
+% end
+% Gamma = flipud(Gamma);
+
+% Beta = 1;
+% Gamma = -0.2;
 
 
 % Plot options
@@ -81,22 +98,24 @@ spikes = nan(T,M,trials);        % Measurements;
 X = nan(T,N,trials);        % Hidden state
 dX = nan(T,N,trials);        % Change in hidden state
 
-X(1,1:N,1:trials) = rand(size(X(1,1:N,1:trials)));
+X(1,:,:) = repmat(rand(size(X(1,:,1))),[1 1 trials]);
 tempBeta = reshape(Beta(end,:,:),[N, M])';
 for k = 1:trials
     lambda(1,:,k) = exp( mu_c + tempBeta*X(1,:,k)' );
 end
 spikes(1,:,:) = poissrnd(lambda(1,:,:));
 
+
+X = repmat(randn(T,size(X,2),1),[1 1 trials]);
 % Run simulation
 for k = 1:trials
     for i = 2:T
-        % Determine change in X
-        dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
-            + SigT*randn(N,1), [3 1 2] )/tau;
-        
-        % Update X
-        X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
+%         % Determine change in X
+%         dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
+%             + SigT*randn(N,1), [3 1 2] )/tau;
+%         
+%         % Update X
+%         X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
         
         % Generate spiking responses
         if i-BetaSize+1 < 2
@@ -114,6 +133,14 @@ for k = 1:trials
         
     end
 end
+
+%% Fit model to the data
+mu_ini = 0;
+k_ini = [0 1 0 0 0 0 0 0 0 0];
+h_ini = [-1 0 0 0 0 0 0 0 0 0];
+optMethod = 'ML';
+sigma = 0.5;
+[mu, k, h, llike, exitflg, output] = LNP_fitter(X(:,:,:),spikes(:,:,:),mu_ini,k_ini,h_ini,'optMethod',optMethod,'BasisSet',BasisSet);
 
 %% Calculate some statistics
 % Mean and variance of x(i)

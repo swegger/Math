@@ -1,4 +1,4 @@
- function [w, mu, sig, logl, gamma] = FitLDS(X,mu0init,V0init,Ainit,Ginit,Cinit,Sinit,tolerance,varargin)
+function [w, mu, sig, logl, gamma] = FitLDS(X,mu0init,V0init,Ainit,Ginit,Cinit,Sinit,tolerance,varargin)
 %% FitMixtureModelEM
 %
 %   [w, mu, sig, logl, gamma] = FitLDS(x,Ainit,Ginit,Cinit,Sinit,tolerance)

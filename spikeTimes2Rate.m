@@ -146,8 +146,8 @@ switch ComputeVariance
                 
             case {'Yes','yes','Y','y',1}
                 % Calculate filter
-                t0 = 0:resolution:max(max(time))/2;
-                tvec = [-fliplr(t0(2:end)) t0];
+                t0 = 1:resolution:floor(size(time,1)/2);
+                tvec = [-fliplr(t0(1:end-2)) 0 t0(1:end-2)];
                 f = Filter(tvec);
                 f = f(f > 10^-10);
                 
