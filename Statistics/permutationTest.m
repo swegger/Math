@@ -11,10 +11,10 @@ function p = permutationTest(x,y,varargin)
 
 Parser = inputParser;
 
-addRequired(Parser,'x')
-addRequired(Parser,'y')
-addParameter(Parser,'tail','right')
-addParameter(Parser,'Permutations',NaN)
+addRequired(Parser,'x')                 % Input data with "x" label
+addRequired(Parser,'y')                 % Input data with "y" label
+addParameter(Parser,'tail','right')     % Defaults to testing if x is greater than y
+addParameter(Parser,'Permutations',NaN) % Number of permutations to perform to generate test distribution; defaults to all permutations
 
 parse(Parser,x,y,varargin{:})
 

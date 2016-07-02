@@ -35,6 +35,7 @@ BasisSet.h = BasisSet.k;
 mu_c = 0;
 Beta = 0.01*flipud(BasisSet.k(2,:)');
 Gamma = -0.005*flipud(BasisSet.h(1,:)');
+GammaSize = length(Gamma);
 % mu_c = 0;
 % BetaParams = rand(N,M)/2;
 % Beta = zeros(BetaSize,N,M);
