@@ -30,6 +30,7 @@ addParameter(p,'method_options',method_opts_default);
 addParameter(p,'trials',1000);
 addParameter(p,'integrationMethod','quad');
 addParameter(p,'options',NaN);
+addParameter(p,'sigp',0);
 
 
 parse(p,ts,wm,N,dt,varargin{:})
@@ -46,6 +47,7 @@ method_options = p.Results.method_options;
 trials = p.Results.trials;
 integrationMethod = p.Results.integrationMethod;
 options = p.Results.options;
+sigp = p.Results.sigp;
 
 if isnan(Support)
     tsmin = min(ts);
@@ -338,6 +340,34 @@ switch method
                 varargout{2} = v;
                 varargout{3} = rmse;
                 
+            case 'BLS_wm_wp_sigp'
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    BLS = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts);
+                    
+                    BLS = BLS + wp*BLS.*randn(size(BLS)) + sigp*randn(size(BLS));
+                    
+                    errors(:,i) = BLS - ts(i);
+                    ta(i) = mean(BLS);
+                    ta_std(i) = std(BLS);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;
                 
             otherwise
                 error(['Numerical simulation of model type ' Type ' not yet supported!'])
