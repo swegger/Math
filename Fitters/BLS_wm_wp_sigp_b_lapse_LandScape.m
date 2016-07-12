@@ -166,8 +166,10 @@ switch FitType
 end
 
 for ii = 1:size(parameters,1)
+    disp(['Parameter combination ' num2str(ii) ' of ' num2str(size(parameters,1))])
     p = parameters(ii,:);
     LL(ii) = f(p);
+    disp(LL(ii))
 end    
 
 
