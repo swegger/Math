@@ -264,7 +264,7 @@ for ii = 1:length(xfit)
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
-            m = 0:dx:2*xmax;
+            m = 0.05:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n = max([N{:}]);
@@ -444,19 +444,7 @@ function logL = logLikelihoodQUAD(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,pmin,
 
 % Determine if different number of Ns are used
 if iscell(N)
-    %     % Create measument matrix
-    %     if xmin-5*wm*xmin < 0
-    %         m = 0:dx:xmax+5*wm*xmax;
-    %     else
-    %         m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-    %     end
     l = length(m);
-    %     Mtemp = cell(1,max([N{:}]));
-    %     [Mtemp{:}] = ndgrid(m);
-    %     M = zeros(l^max([N{:}]),max([N{:}]));
-    %     for j = 1:max([N{:}])
-    %         M(:,j) = [Mtemp{j}(:)];
-    %     end
     
     logLi = nan(length(N),length(wm));
     M = repmat(M,[1 1 length(wm)]);
@@ -493,13 +481,11 @@ if iscell(N)
         end
         X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
-        %M = repmat(M,[1 1 length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
@@ -552,7 +538,6 @@ else
     WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     
     p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
     p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
@@ -577,77 +562,10 @@ function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,
 %
 %%
 
-%error('Lapse model not yet supported for FitType = "quad_batch"')
 % Determine if different number of Ns are used
 if iscell(N)
-%     % Create measument matrix
-%     if xmin-5*wm*xmin < 0
-%         m = 0:dx:xmax+5*wm*xmax;
-%     else
-%         m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-%     end
+
      l = length(m);
-%     Mtemp = cell(1,max([N{:}]));
-%     [Mtemp{:}] = ndgrid(m);
-%     M = zeros(l^max([N{:}]),max([N{:}]));
-%     for j = 1:max([N{:}])
-%         M(:,j) = [Mtemp{j}(:)];
-%     end
-    
-     % For measurement number condition, find likelihood
-%     for i = 1:length(N)
-%         n = N{i};
-%         
-%         for k = 1:ceil(length(x{i})/batchsize)
-%             if length(x{i}) <= (k-1)*batchsize+batchsize
-%                 xtemp = x{i}((k-1)*batchsize+1:end);
-%                 ytemp = y{i}((k-1)*batchsize+1:end);
-%             else
-%                 xtemp = x{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
-%                 ytemp = y{i}((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
-%             end
-% %             if xmin-5*wm*xmin < 0
-% %                 m = 0:dx:xmax+5*wm*xmax;
-% %             else
-% %                 m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-% %             end
-% %             
-% %             if n*length(m)^n > 4000000
-% %                 error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
-% %             end
-%             
-%             % Set up Simpson's nodes
-%             w = ones(1,l);
-%             h = (m(end)-m(1))/l;
-%             w(2:2:l-1) = 4;
-%             w(3:2:l-1) = 2;
-%             w = w*h/3;
-%             
-%             W = w(:);
-%             for j = 2:n
-%                 W = W*w;
-%                 W = W(:);
-%             end
-% 
-%             
-%             method_opts.type = 'quad';
-%             method_opts.dx = dx;
-%             fBLS = ScalarBayesEstimators(M(1:l^n,1:n),wm,xmin,xmax,'method',method_opts);
-%             X = repmat(xtemp',numel(fBLS),1);
-%             Y = repmat(ytemp',numel(fBLS),1);
-%             fBLS = repmat(fBLS,1,size(X,2));
-%             
-%             p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
-%             p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*X.^2)).^n .* exp( -sum((repmat(permute(M(1:l^n,1:n),[1 3 2]),[1 size(X,2) 1])-repmat(X,[1 1 n])).^2,3)./(2.*wm.^2.*X.^2) );
-%             integrand = p_y_take_fBLS.*p_m_take_x;
-%             
-%             likelihood = W(1:l^n)'*integrand;
-%             
-%             logLik(i,k) = -sum(log(likelihood));
-%             
-%         end
-%     end
-%     logL = sum(reshape(logLik,numel(logLik),1));
 
 for i = 1:length(N)
     logLik{i} = nan(length(wm),ceil(length(x{i})/batchsize));
@@ -697,7 +615,6 @@ for i = 1:length(N)
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -permute(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3),[1 2 4 3])./(2.*WM.^2.*X.^2) );
@@ -712,12 +629,7 @@ for i = 1:length(N)
 end
     
 else
-    
-%     if xmin-5*wm*xmin < 0
-%         m = 0:dx:xmax+5*wm*xmax;
-%     else
-%         m = xmin-5*wm*xmin:dx:xmax+5*wm*xmax;
-%     end
+
     
     if N*length(m)^N > 4000000
         error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
@@ -732,8 +644,8 @@ else
             ytemp = y((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
         end
         
-%         % Set up Simpson's nodes
-         l = length(m);
+        % Set up Simpson's nodes
+        l = length(m);
         w = ones(1,l);
         h = (m(end)-m(1))/l;
         w(2:2:l-1) = 4;
@@ -746,12 +658,6 @@ else
             W = W(:);
         end
         
-%         Mtemp = cell(1,N);
-%         [Mtemp{:}] = ndgrid(m);
-%         M = zeros(l^N,N);
-%         for i = 1:N
-%             M(:,i) = [Mtemp{i}(:)];
-%         end
         
         method_opts.type = 'quad';
         method_opts.dx = dx;

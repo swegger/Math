@@ -1,4 +1,4 @@
-function [llikelihood, lmodelEvidence] = BLS_wm_wp_sigp_b_lapse_Validator(x,y,wm,wy,b,lapse,sig,varargin)
+function LL = BLS_wm_wp_sigp_b_lapse_LandScape(x,y,parameters,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
@@ -17,13 +17,12 @@ ICflg = 0;
 FitterFlg = 0;
 Nflg = 0;
 LapseSupportflg = 0;
+CrossValidationflg = 0;
 ModelEvidenceflg = 0;
+MeasureOptimizationLandscapeflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
-        if strcmp(varargin{i},'InitCond')
-            ICflg = 1;
-            ICnum = i;
-        elseif strcmp(varargin{i},'FitType')
+        if strcmp(varargin{i},'FitType')
             FitterFlg = 1;
             Fitnum = i;
         elseif strcmp(varargin{i},'N')
@@ -32,18 +31,10 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'LapseSupport')
             LapseSupportflg = 1;
             LapseSupportnum = i;
-        elseif strcmp(varargin{i},'ModelEvidence')
-            ModelEvidenceflg = 1;
-            ModelEvidencenum = i;
         end
     end
 end
 
-if ICflg
-    IC = varargin{ICnum+1};
-else
-    IC = [0.1 0.06 0 0.05];
-end
 
 if FitterFlg
     FitType = varargin{Fitnum+1};
@@ -101,119 +92,86 @@ else
     end
 end
 
-if ModelEvidenceflg
-    ModelEvidence = varargin{ModelEvidencenum+1};
-    if ~isfield(ModelEvidence,'OpenMind')
-        ModelEvidence.OpenMind = 0;
-    end
-else
-    ModelEvidence.method = 'none';
-end
 
 if nargin < 3 
     error('Not enought input arguments!')
 end
 
-%% Test model predictions on data
-for ii = 1:length(x)
-    switch FitType
-        case 'integral'
-            % Use integral
-            BLSvalidant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,x,y,xmin,xmax);
-            
-        case 'trapz'
-            % Use trapz
-            BLSvalidant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,x,y);
-            
-        case 'quad'
-            % Use Simpson's quadrature
-            m = 0:dx:2*xmax;
-            l = length(m);
-            if iscell(N)
-                n= max([N{:}]);
-                Mtemp = cell(1,n);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^n,n);
-                for j = 1:n
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            else
-                n = N;
-                Mtemp = cell(1,N);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^N,N);
-                for j = 1:N
-                    M(:,j) = [Mtemp{j}(:)];
-                end
+%% Iterate over different parameter combinations
+% Set up likelihood function
+switch FitType
+    case 'integral'
+        % Use integral
+        f = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
+        
+    case 'trapz'
+        % Use trapz
+        f = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
+        
+    case 'quad'
+        % Use Simpson's quadrature
+        m = 0:dx:2*xmax;
+        l = length(m);
+        if iscell(N)
+            n= max([N{:}]);
+            Mtemp = cell(1,n);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^n,n);
+            for j = 1:n
+                M(:,j) = [Mtemp{j}(:)];
             end
-            
-            BLSvalidant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            
-        case 'quad_batch'
-            % Use Simpson's quadrature on batches of data
-            m = 0:dx:2*xmax;
-            l = length(m);
-            if iscell(N)
-                n = max([N{:}]);
-                Mtemp = cell(1,n);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^n,n);
-                for j = 1:n
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            else
-                n = N;
-                Mtemp = cell(1,N);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^N,N);
-                for j = 1:N
-                    M(:,j) = [Mtemp{j}(:)];
-                end
+        else
+            n = N;
+            Mtemp = cell(1,N);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^N,N);
+            for j = 1:N
+                M(:,j) = [Mtemp{j}(:)];
             end
-            
-            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
-            
-        case 'quad_nested'
-            % Use Simpson's quadrature on batches of data, performing
-            % integrations in nested loops
-            m = 0:dx:2*xmax;
-            l = length(m);
-            
-            BLSvalidant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,x,y,xmin,xmax,dx,m,batchsize);
-    end
-    lparams = [wm, wy, b, lapse, sig];
-    llikelihood(ii) = BLSvalidant(lparams);
-            
-    
-    switch ModelEvidence.method
-        case 'Integration'
-            % Numerical integration of the likelihood function across
-            % different parameter values.
-            functionHandle = @(P)(modelEvidenceFunction(llikelihood(ii),BLSvalidant(P)));
-            modelEvidence = ndintegrate(functionHandle,ModelEvidence.paramLimits,'method',ModelEvidence.integrationMethod,'options',ModelEvidence.integrationOptions,'OpenMind',ModelEvidence.OpenMind);
-            lmodelEvidence(ii) = log(modelEvidence) - llikelihood(ii);      % log model evidence
-            
-        case 'UniformApproximation'
-            error('UniformApproximation method for model evidence not yet supported!')
-            
-        case 'GaussianApproximation'
-            % Use Laplace's method to estimate the integral over the
-            % parameters via a Gaussian with mu at the ML fit and
-            % covariance from the Hessian at the ML fit.
-            error('Gaussian approximation method for model evidence not yet supported!')
-            %lmodelEvidence(ii) = -llikelihood(ii) + log(1/prod(diff(ModelEvidence.paramLimits,1,2))) + length(lparams)/2*log(2*pi) - log(det(-hessian))/2;  % log model evidence <- this hessian isn't right... its the hessian of ln(p(D|p,M))
-            
-        case {'None','none'}
-            lmodelEvidence(ii) = NaN;
-            
-        otherwise
-            error(['Model evidence calculation method ' ModelEvidence.method ' not recognized!'])
-    end
-
+        end
+        
+        f = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+        
+    case 'quad_batch'
+        % Use Simpson's quadrature on batches of data
+        m = 0.05:dx:2*xmax;
+        l = length(m);
+        if iscell(N)
+            n = max([N{:}]);
+            Mtemp = cell(1,n);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^n,n);
+            for j = 1:n
+                M(:,j) = [Mtemp{j}(:)];
+            end
+        else
+            n = N;
+            Mtemp = cell(1,N);
+            [Mtemp{:}] = ndgrid(m);
+            M = zeros(l^N,N);
+            for j = 1:N
+                M(:,j) = [Mtemp{j}(:)];
+            end
+        end
+        
+        f = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+        
+    case 'quad_nested'
+        % Use Simpson's quadrature on batches of data, performing
+        % integrations in nested loops
+        m = 0:dx:2*xmax;
+        l = length(m);
+        
+        f = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
 end
-    
 
-%% Function for validation
+for ii = 1:size(parameters,1)
+    p = parameters(ii,:);
+    LL(ii) = f(p);
+end    
+
+
+%% Function to be minimized
 function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
 %% LOGLIKELIHOOD
 %
@@ -293,9 +251,7 @@ function logL = logLikelihoodQUAD(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,pmin,
 
 % Determine if different number of Ns are used
 if iscell(N)
-
     l = length(m);
-
     
     logLi = nan(length(N),length(wm));
     M = repmat(M,[1 1 length(wm)]);
@@ -332,13 +288,11 @@ if iscell(N)
         end
         X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
-        %M = repmat(M,[1 1 length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
@@ -352,10 +306,7 @@ if iscell(N)
     end
     logL = permute(sum(logLi,1),[2 1]);
     
-    
-else
-    
-error('Not yet supported!') 
+else    
     
     if N*length(m)^N > 4000000
         error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
@@ -394,7 +345,6 @@ error('Not yet supported!')
     WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-    %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     
     p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
     p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
@@ -409,7 +359,7 @@ error('Not yet supported!')
     
 end
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
@@ -419,11 +369,10 @@ function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin
 %
 %%
 
-%error('Lapse model not yet supported for FitType = "quad_batch"')
 % Determine if different number of Ns are used
 if iscell(N)
-     l = length(m);
 
+     l = length(m);
 
 for i = 1:length(N)
     logLik{i} = nan(length(wm),ceil(length(x{i})/batchsize));
@@ -473,7 +422,6 @@ for i = 1:length(N)
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        %LAPSE = repmat(permute(lapse(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*(WY.^2.*fBLS.^2 +SIG.^2))) .* exp( -(Y - (fBLS+B)).^2./(2.*(WY.^2.*fBLS.^2 +SIG.^2)) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -permute(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3),[1 2 4 3])./(2.*WM.^2.*X.^2) );
@@ -488,8 +436,7 @@ for i = 1:length(N)
 end
     
 else
-    
-error('Not yet supported!')
+
     
     if N*length(m)^N > 4000000
         error('Surpasing reasonable memory limits; suggest increasing dx or decreasing N')
@@ -504,8 +451,8 @@ error('Not yet supported!')
             ytemp = y((k-1)*batchsize+1:(k-1)*batchsize+batchsize);
         end
         
-%         % Set up Simpson's nodes
-         l = length(m);
+        % Set up Simpson's nodes
+        l = length(m);
         w = ones(1,l);
         h = (m(end)-m(1))/l;
         w(2:2:l-1) = 4;
@@ -518,12 +465,6 @@ error('Not yet supported!')
             W = W(:);
         end
         
-%         Mtemp = cell(1,N);
-%         [Mtemp{:}] = ndgrid(m);
-%         M = zeros(l^N,N);
-%         for i = 1:N
-%             M(:,i) = [Mtemp{i}(:)];
-%         end
         
         method_opts.type = 'quad';
         method_opts.dx = dx;
