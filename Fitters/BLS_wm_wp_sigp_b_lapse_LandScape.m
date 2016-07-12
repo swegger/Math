@@ -102,11 +102,11 @@ end
 switch FitType
     case 'integral'
         % Use integral
-        f = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
+        f = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,x{ii},y{ii},xmin,xmax);
         
     case 'trapz'
         % Use trapz
-        f = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
+        f = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,x{ii},y{ii});
         
     case 'quad'
         % Use Simpson's quadrature
@@ -130,7 +130,7 @@ switch FitType
             end
         end
         
-        f = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+        f = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,x{ii},y{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
         
     case 'quad_batch'
         % Use Simpson's quadrature on batches of data
@@ -154,7 +154,7 @@ switch FitType
             end
         end
         
-        f = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+        f = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,x{ii},y{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
         
     case 'quad_nested'
         % Use Simpson's quadrature on batches of data, performing
@@ -162,7 +162,7 @@ switch FitType
         m = 0:dx:2*xmax;
         l = length(m);
         
-        f = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
+        f = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,x{ii},y{ii},xmin,xmax,dx,m,batchsize);
 end
 
 for ii = 1:size(parameters,1)
