@@ -239,7 +239,7 @@ for ii = 1:length(xfit)
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 0:dx:2*xmax;
+            m = 0.05:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
