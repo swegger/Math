@@ -291,7 +291,7 @@ switch method
                     estimator.weights = ones(1:N)/N;
                     E = ScalarBayesEstimators(tm,wm,tsmin,tsmax,'method',method_opts,'estimator',estimator);
                     
-                    E = E + wp*E.*randn(size(E));
+                    E = E + wp*E.*randn(size(E)) + sigp*randn(size(E));
                     
                     errors(:,i) = E - ts(i);
                     ta(i) = mean(E);
