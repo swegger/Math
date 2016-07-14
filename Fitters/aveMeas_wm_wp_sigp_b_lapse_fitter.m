@@ -296,10 +296,9 @@ for ii = 1:length(xfit)
             validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
     end
     
-    %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
     lb = [0 0 -Inf 0 0];
     ub = [1 1 Inf 1 Inf];
-    minimizer = 'fmincon(minimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
+    minimizer = 'fmincon(minimizant, [wM_ini wP_ini b_ini lapse_ini sig_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
         wP_ini = IC(2);
