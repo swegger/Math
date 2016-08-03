@@ -7,15 +7,15 @@
 
 %% Parameters
 % General
-N = 1;              % Dimensionality of the system
-M = 1;            % Measurement dimensionality
+N = 2;              % Dimensionality of the system
+M = 50;            % Measurement dimensionality
 T = 1000;           % Total number of time-stamps
-trials = 5000;       % Total number of trials
+trials = 500;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-A = -1;%[0 -1; 1 0];        % Deterministic portion
-SigT = 0.1;%[0.1 0; 0 0.1];      % Transition noise covariance
+A = [0 -1; 1 0];        % Deterministic portion
+SigT = [0.1 0; 0 0.1];      % Transition noise covariance
 tau = 100;
 
 % For fitting
@@ -32,10 +32,12 @@ end
 BasisSet.h = BasisSet.k;
 
 % Measurement model
+Beta = randn(M,N);
+Gamma = zeros(M,N);
 mu_c = 0;
-Beta = 0.01*flipud(BasisSet.k(2,:)');
-Gamma = -0.005*flipud(BasisSet.h(1,:)');
-GammaSize = length(Gamma);
+% Beta = 0.01*flipud(BasisSet.k(2,:)');
+% Gamma = -0.005*flipud(BasisSet.h(1,:)');
+% GammaSize = length(Gamma);
 % mu_c = 0;
 % BetaParams = rand(N,M)/2;
 % Beta = zeros(BetaSize,N,M);
@@ -99,41 +101,45 @@ spikes = nan(T,M,trials);        % Measurements;
 X = nan(T,N,trials);        % Hidden state
 dX = nan(T,N,trials);        % Change in hidden state
 
-X(1,:,:) = repmat(rand(size(X(1,:,1))),[1 1 trials]);
-tempBeta = reshape(Beta(end,:,:),[N, M])';
+X(1,:,:) = repmat(ones(size(X(1,:,1))),[1 1 trials]);
+% tempBeta = reshape(Beta(end,:,:),[N, M])';
 for k = 1:trials
-    lambda(1,:,k) = exp( mu_c + tempBeta*X(1,:,k)' );
+    lambda(1,:,k) = exp( mu_c + Beta*X(1,:,k)' );
+%     lambda(1,:,k) = exp( mu_c + tempBeta*X(1,:,k)' );
 end
-spikes(1,:,:) = poissrnd(lambda(1,:,:));
+%spikes(1,:,:) = poissrnd(lambda(1,:,:));
 
 
 X = repmat(randn(T,size(X,2),1),[1 1 trials]);
 % Run simulation
 for k = 1:trials
     for i = 2:T
-%         % Determine change in X
-%         dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
-%             + SigT*randn(N,1), [3 1 2] )/tau;
-%         
-%         % Update X
-%         X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
+        % Determine change in X
+        dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
+            + SigT*randn(N,1), [3 1 2] )/tau;
+        
+        % Update X
+        X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
         
         % Generate spiking responses
-        if i-BetaSize+1 < 2
-            tempBeta = reshape(Beta(end-i+1:end,:,:),[length(1:i)*N M])';
-            lambda(i,:,k) = exp( mu_c + ...
-                tempBeta*reshape(X(1:i,:,k),numel(X(1:i,:,k)),1) + ...
-                diag(Gamma(end-i+2:end,:)'*spikes(1:i-1,:,k)) );
-        else
-            tempBeta = reshape(Beta,[BetaSize*N M])';
-            lambda(i,:,k) = exp( mu_c +...
-                tempBeta*reshape(X(i-BetaSize+1:i,:,k),numel(X(i-BetaSize+1:i,:,k)),1) + ...
-                diag(Gamma'*spikes(i-GammaSize:i-1,:,k)) );
-        end
-        spikes(i,:,k) = poissrnd(lambda(i,:,k));
+        lambda(i,:,k) = exp( mu_c + Beta*X(i,:,k)' );
+%         if i-BetaSize+1 < 2
+%             tempBeta = reshape(Beta(end-i+1:end,:,:),[length(1:i)*N M])';
+%             lambda(i,:,k) = exp( mu_c + ...
+%                 tempBeta*reshape(X(1:i,:,k),numel(X(1:i,:,k)),1) + ...
+%                 diag(Gamma(end-i+2:end,:)'*spikes(1:i-1,:,k)) );
+%         else
+%             tempBeta = reshape(Beta,[BetaSize*N M])';
+%             lambda(i,:,k) = exp( mu_c +...
+%                 tempBeta*reshape(X(i-BetaSize+1:i,:,k),numel(X(i-BetaSize+1:i,:,k)),1) + ...
+%                 diag(Gamma'*spikes(i-GammaSize:i-1,:,k)) );
+%         end
+
+%         spikes(i,:,k) = poissrnd(lambda(i,:,k));
         
     end
 end
+spikes = poissrnd(lambda);
 
 %% Fit model to the data
 mu_ini = 0;
@@ -148,14 +154,16 @@ sigma = 0.5;
 Xbar = mean(X,3);
 Xvar = var(X,[],3);
 
-Ybar = mean(Y,3);
-Yvar = var(Y,[],3);
+Ybar = mean(spikes,3);%mean(Y,3);
+Yvar = var(spikes,[],3);%var(Y,[],3);
 
 %% Perform PCA
-Sigma = cov(Ybar');
+Sigma = cov(Ybar);
 [V, D] = eig(Sigma);
 D = flipud(diag(D))/sum(diag(D));
 V = fliplr(V);
+
+Yhat = Ybar*V;
 
 %% Fit to the mean
 Theta0 = [1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]...
