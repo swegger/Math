@@ -7,10 +7,10 @@
 
 % Variables
 dt = 0.001;              % Time step of simulation
-A = [-1 0; 0 -1];
+A = [1 0; 0 -1];
 gain = 0.1;
-F{1} = @(x)( x(:,1) ./ sqrt(1+x(:,1).^2) );
-F{2} = @(x)( gain*exp(x(:,2)) );
+F{1} = @(x)( x(2,:) );
+F{2} = @(x)( tanh(x(1,:)) );
 I = 0;                  % External input
 B = [0 0; 0 0];
 u0 = [1; 1];                % Inital condition of u
@@ -30,7 +30,7 @@ colors = flipud(colors);
 
 %% Determine vector field
 [X1, X2] = meshgrid(uvals);
-U = [X1(:), X2(:)];
+U = [X1(:)'; X2(:)'];
 [dX, XNull] = NL_linear2DVectorField(U,A,F,I);
 
 %% Run simulation and "kick" the partical to a new position at different
@@ -42,7 +42,7 @@ for i = 1:length(tkick)
     
     % Run the model following the kick
     kicktemp = -kick;%*w{i}(end);
-    [upost{i}, dupost{i}] = NL_linear2D(t{i},u{i}(end)+kicktemp(1),A,F,I,B);
+    [upost{i}, dupost{i}] = NL_linear2D(t{i},u{i}(:,end)+kicktemp(1),A,F,I,B);
 end
 
 %% Measure the "speed" of activity changes along u and w

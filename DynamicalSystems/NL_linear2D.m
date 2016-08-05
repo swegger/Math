@@ -10,13 +10,13 @@ dt = t(2)-t(1);
 for ti = 1:length(t)
     if ti == 1
         for i = 1:2
-            fU(:,i) = F{i}(u0);
+            fU(i,:) = F{i}(u0);
         end
         du(:,ti) = (A*fU+ I(:,ti) + B*randn(size(B,2),1))*dt;
         u(:,ti) = u0;
     else
         for i = 1:2
-            fU(:,i) = F{i}(u(:,ti-1));
+            fU(i,:) = F{i}(u(:,ti-1));
         end
         du(:,ti) = (A*fU + I(:,ti) + B*randn(size(B,2),1))*dt;
         u(:,ti) = u(:,ti-1) + du(:,ti);
