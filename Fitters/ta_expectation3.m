@@ -239,7 +239,7 @@ switch method
                 varargout{2} = v;
                 varargout{3} = rmse;
                 
-            case 'ObsAct'
+            case {'ObsAct','ObsActLapse'}
                 % Iterate for each ts
                 %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
                 errors = zeros(trials,length(ts));
