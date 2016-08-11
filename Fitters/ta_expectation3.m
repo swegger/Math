@@ -114,7 +114,7 @@ switch method
                 end
                 
                 
-            case 'ObsAct'
+            case {'ObsAct','ObsActLapse'}
                 switch integrationMethod
                     case 'integral'
                         error('integrationMethod "integral" not yet supported!')
