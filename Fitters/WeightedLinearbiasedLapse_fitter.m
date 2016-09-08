@@ -235,7 +235,7 @@ for ii = 1:length(xfit)
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 1:dx:2*xmax;
+            m = 10:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
@@ -260,7 +260,7 @@ for ii = 1:length(xfit)
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
-            m = 1:dx:2*xmax;
+            m = 10:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n = max([N{:}]);
