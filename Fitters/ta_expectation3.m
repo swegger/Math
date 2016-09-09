@@ -380,7 +380,7 @@ switch method
                     method_opts.type = 'quad';
                     method_opts.dx = dt;
                     sigM = (wm*(tsmax+tsmin)/2).^2;
-                    E = WeigthedLinearEstimator(tm,sigM,(tsmax-tsmin).^2/12,(tsmax+tsmin)/2);
+                    E = WeightedLinearEstimator(tm,sigM,(tsmax-tsmin).^2/12,(tsmax+tsmin)/2);
                     
                     E = E + wp*E.*randn(size(E)) + sigp*randn(size(E));
                     

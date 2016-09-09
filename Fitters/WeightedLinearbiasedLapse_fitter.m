@@ -235,7 +235,7 @@ for ii = 1:length(xfit)
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 10:dx:2*xmax;
+            m = 0:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
@@ -260,7 +260,7 @@ for ii = 1:length(xfit)
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
-            m = 10:dx:2*xmax;
+            m = 0:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n = max([N{:}]);
@@ -293,7 +293,7 @@ for ii = 1:length(xfit)
             validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
     end
     
-    lb = [0 0 -Inf 0];
+    lb = [0.001 0 -Inf 0];
     ub = [1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [sigM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
@@ -621,6 +621,10 @@ for i = 1:length(N)
         end
     end
     logL = logL + sum(logLik{i},2);
+    
+    if logL < 0
+        disp('FUCK!')
+    end
 end
     
 else
