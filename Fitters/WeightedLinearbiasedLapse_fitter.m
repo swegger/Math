@@ -235,7 +235,7 @@ for ii = 1:length(xfit)
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 0:dx:2*xmax;
+            m = 200:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
@@ -260,7 +260,7 @@ for ii = 1:length(xfit)
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
-            m = 0:dx:2*xmax;
+            m = 200:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n = max([N{:}]);
@@ -286,7 +286,7 @@ for ii = 1:length(xfit)
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
             % integrations in nested loops
-            m = 0:dx:2*xmax;
+            m = 200:dx:2*xmax;
             l = length(m);
             
             minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
@@ -622,9 +622,6 @@ for i = 1:length(N)
     end
     logL = logL + sum(logLik{i},2);
     
-    if logL < 0
-        disp('FUCK!')
-    end
 end
     
 else
