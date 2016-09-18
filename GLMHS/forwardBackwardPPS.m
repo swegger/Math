@@ -1,4 +1,4 @@
-function [mu, V] = forwardBackwardPPS(x,model)
+function [mu, V, Vj] = forwardBackwardPPS(x,model,varargin)
 %% forwardBackwardPPS
 %
 %   [mu, V] = forwardBackwardPPS(y,model)
@@ -9,45 +9,44 @@ function [mu, V] = forwardBackwardPPS(x,model)
 %
 %%
 
-A = model.A;            % Transition matrix
-Gamma = model.Gamma;    % Transition covariance
+%% Defaults
 
-mu_c = model.mu_c;      % Mean firing rate
-C = model.C;            % Linear dependence of spiking on hidden state
-Sigma = model.Sigma;    % Neuron noise
+%% Parse inputs
+Parser = inputParser;
 
+addRequired(Parser,'x')
+addRequired(Parser,'model')
+addParameter(Parser,'steps',NaN)
+addParameter(Parser,'mu0',NaN)
+addParameter(Parser,'V0',NaN)
 
-hiddenDims = size(A,1);
+parse(Parser,x,model,varargin{:})
+
+x = Parser.Results.x;
+model = Parser.Results.model;
+steps = Parser.Results.steps;
+mu0 = Parser.Results.mu0;
+V0 = Parser.Results.V0;
+
+if isnan(steps)
+    steps = size(x,2);
+end
 
 %% Perform smoothing
-% Initialize matrices
-mu = zeros(hiddenDims,steps);
-V = zeros(hiddenDims,hiddenDims,steps);
+% Generate forward estimates
+[muhat, Vhat, mu_, V_] = forwardPass(x,mu0,V0,model,steps);
 
-% Find estimate from kalman filter
-[muhat, Vhat, K, mu_, V_] = kalmanFilter(x,A,C,Gamma,Sigma,mu0,V0);
-
-for k = 1:steps-1
-    % Update index
-    indx = steps-k;
-    
-    % Find J
-    J(:,:,indx) = Vhat(:,:,indx)*A'*V_(:,:,indx);
-    
-    % Perform backwards pass
-    mu(:,indx) = muhat(:,indx) + ...
-        J(:,:,indx)*(mu(:,indx+1) - mu_(:,indx));
-    V(:,:,indx) = Vhat(:,:,indx) + ...
-        J(:,:,indx)*(V(:,:,indx+1) - V_(:,:,indx))*J(:,:,indx)';
-    
-end
+% Perform backward recursion
+[mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps);
 
 
 %% Functions
-function [mu, V] = forwardPass(x,mu0,V0,model)
+% Foward Pass
+function [mu, V, mu_, V_] = forwardPass(x,mu0,V0,model,steps)
     A = model.A;
     Gamma = model.Gamma;
     hiddenDims = size(A,1);
+    C = model.C;
     
     % Initialize matrices
     mu_ = zeros(hiddenDims,steps);
@@ -59,7 +58,7 @@ function [mu, V] = forwardPass(x,mu0,V0,model)
     for k = 1:steps
         if k == 1
             % Compute predictive distribution;
-            [mu_(:,k), V_(:,:,k)] = predictive(mu(:,k-1),V(:,:,k-1),A,Gamma,1);
+            [mu_(:,k), V_(:,:,k)] = predictive(mu0,V0,A,Gamma,1);
             
             % Compute expected lambda
             l(:,k) = lambda(mu_(:,k),mu_c,C);
@@ -93,6 +92,37 @@ function [mu, V] = forwardPass(x,mu0,V0,model)
 
         end
     end
+
+% Backward Pass
+function [mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps)
+
+    A = model.A;
+    
+    for k = 1:steps-1
+        % Update index
+        indx = steps-k;
+
+        % Find J
+        J(:,:,indx) = Vhat(:,:,indx)*A'*V_(:,:,indx);
+
+        % Perform backwards pass
+        mu(:,indx) = muhat(:,indx) + ...
+            J(:,:,indx)*(mu(:,indx+1) - mu_(:,indx));
+        V(:,:,indx) = Vhat(:,:,indx) + ...
+            J(:,:,indx)*(V(:,:,indx+1) - V_(:,:,indx))*J(:,:,indx)';
+
+    end
+    
+    Vj(:,steps) = V(:,:,steps)*J(:,:,end-1)';
+    for k = 1:steps-1;
+        % Update index
+        indx = steps-k;
+        
+        % Find joint covariance
+        Vj(:,:,k) = V(:,:,k)*J(:,:,k-1)' + ...
+            J(:,:,k)*( Vj(:,:,k+1) - A*Vhat(:,:,k) )*J(:,:,k-1)';
+    end
+    
     
 % Predictive distribution
 function [mu, V] = predictive(mu0,V0,A,Gamma)
