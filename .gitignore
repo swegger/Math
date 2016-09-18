@@ -1,0 +1,7 @@
+# Files to ignore in Math respository
+*.m~
+*.mat
+
+# System files
+.DS_Store
+
