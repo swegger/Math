@@ -22,7 +22,7 @@ function [mu, V, K, mu_, V_] = ...
 %%
 
 %% Defaults
-
+a
 %% Parse input
 Parser = inputParser;
 
