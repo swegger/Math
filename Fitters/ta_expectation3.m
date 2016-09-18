@@ -114,7 +114,7 @@ switch method
                 end
                 
                 
-            case 'ObsAct'
+            case {'ObsAct','ObsActLapse'}
                 switch integrationMethod
                     case 'integral'
                         error('integrationMethod "integral" not yet supported!')
@@ -239,7 +239,7 @@ switch method
                 varargout{2} = v;
                 varargout{3} = rmse;
                 
-            case 'ObsAct'
+            case {'ObsAct','ObsActLapse'}
                 % Iterate for each ts
                 %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
                 errors = zeros(trials,length(ts));
@@ -368,6 +368,37 @@ switch method
                 varargout{1} = bias2;
                 varargout{2} = v;
                 varargout{3} = rmse;
+                
+            case 'WeightedLinear'
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    sigM = (wm*(tsmax+tsmin)/2).^2;
+                    E = WeightedLinearEstimator(tm,sigM,(tsmax-tsmin).^2/12,(tsmax+tsmin)/2);
+                    
+                    E = E + wp*E.*randn(size(E)) + sigp*randn(size(E));
+                    
+                    errors(:,i) = E - ts(i);
+                    ta(i) = mean(E);
+                    ta_std(i) = std(E);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;
+                
                 
             otherwise
                 error(['Numerical simulation of model type ' Type ' not yet supported!'])

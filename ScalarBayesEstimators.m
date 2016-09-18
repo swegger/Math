@@ -214,7 +214,7 @@ switch estimator.type
                 e = numerator./denominator;
         end
         
-    case 'ObsAct'
+    case {'ObsAct','ObsActLapse'}
         wy = estimator.wy;
         switch method.type
             case 'integral'
