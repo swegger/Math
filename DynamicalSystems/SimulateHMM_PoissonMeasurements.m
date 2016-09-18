@@ -15,7 +15,7 @@ t = (1:T)';
 
 % Transition model;
 A = [0 -1; 1 0];        % Deterministic portion
-SigT = [0.1 0; 0 0.1];      % Transition noise covariance
+SigT = [1 0; 0 1];      % Transition noise covariance
 tau = 100;
 
 % For fitting
@@ -163,7 +163,40 @@ Sigma = cov(Ybar);
 D = flipud(diag(D))/sum(diag(D));
 V = fliplr(V);
 
-Yhat = Ybar*V;
+YhatBar = Ybar*V;
+
+for i = 1:trials
+    Yhat(:,:,i) = spikes(:,:,i)*V;
+end
+dYhat = diff(Yhat,1);
+
+states = linspace(min(Yhat(:)),max(Yhat(:)),50);
+[STATES{1}, STATES{2}] = meshgrid(states);
+[INDX{1}, INDX{2}] = meshgrid(1:length(states));
+indx = [INDX{1}(:) INDX{2}(:)];
+[~, BIN] = histc(Yhat(1:end-1,:,:),states,3);
+bin1 = BIN(:,1,:);
+bin1 = bin1(:);
+bin2 = BIN(:,2,:);
+bin2 = bin2(:);
+for indxi = 1:size(indx,1)
+    accept = bin1 == indx(indxi,1) & bin2 == indx(indxi,2);
+    dytemp1 = dYhat(:,1,:);
+    dytemp1 = dytemp1(:);
+    dytemp2 = dYhat(:,2,:);
+    dytemp2 = dytemp2(:);
+    n2(indxi,1) = sum(accept);
+    mdY(indxi,1) = mean(dytemp1(accept));
+    mdY(indxi,2) = mean(dytemp2(accept));
+end
+
+% for indxi = 1:size(indx,1)
+%     accept = BIN(:,1) == indx(indxi,1) & BIN(:,2) == indx(indxi,2);
+%     n2(indxi,1) = sum(accept(:));
+%     mdY(indxi,1) = mean(dYhat(accept,1));
+%     mdY(indxi,2) = mean(dYhat(accept,2));
+% end
+
 
 %% Fit to the mean
 Theta0 = [1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]...
