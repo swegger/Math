@@ -1,4 +1,4 @@
-function [mu, V, Vj, mu_, V_, muhat, Vhat] = forwardBackwardPPS(x,model,varargin)
+function [mu, V, Vj, mu_, V_, muhat, Vhat, J] = forwardBackwardPPS(x,model,varargin)
 %% forwardBackwardPPS
 %
 %   [mu, V] = forwardBackwardPPS(y,model)
@@ -19,6 +19,7 @@ addRequired(Parser,'model')
 addParameter(Parser,'steps',NaN)
 addParameter(Parser,'mu0',NaN)
 addParameter(Parser,'V0',NaN)
+addParameter(Parser,'verbose',false)
 
 parse(Parser,x,model,varargin{:})
 
@@ -27,6 +28,7 @@ model = Parser.Results.model;
 steps = Parser.Results.steps;
 mu0 = Parser.Results.mu0;
 V0 = Parser.Results.V0;
+verbose = Parser.Results.verbose;
 
 if isnan(steps)
     steps = size(x,2);
@@ -42,10 +44,16 @@ end
 
 %% Perform smoothing
 % Generate forward estimates
+if verbose
+    disp('Performing forward passes...')
+end
 [muhat, Vhat, mu_, V_] = forwardPass(x,mu0,V0,model,steps);
 
 % Perform backward recursion
-[mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps);
+if verbose
+    disp('Performing backward passes...')
+end
+[mu, V, Vj, J] = backwardPass(muhat,mu_,Vhat,V_,model,steps);
 
 
 %% Functions
@@ -73,15 +81,15 @@ function [mu, V, mu_, V_] = forwardPass(x,mu0,V0,model,steps)
             % Compute expected lambda
             l(:,k) = lambda(mu_(:,k),mu_c,C);
             for c = 1:size(x,1)
-                temp(:,:,c) = C(c,:)*l(c,k)*C(c,:)';
-                errs(:,c) = C(c,:)*(x(c,k) - l(c,k));
+                temp(:,:,c) = C(c,:)'*l(c,k)*C(c,:);
+                errs(:,c) = C(c,:)'*(x(c,k) - l(c,k));
             end
             Sigma = sum(temp,3);
             Err = sum(errs,2);
 
             % Update the predictive distribtuion using new measurements
             V(:,:,k) = inv( inv(V_(:,:,k)) + Sigma );
-            mu(:,k) = mu_(:,k) + inv(V(:,:,k))*Err;
+            mu(:,k) = mu_(:,k) + V(:,:,k)*Err;
 
         else
             % Compute predictive distribution;
@@ -90,7 +98,7 @@ function [mu, V, mu_, V_] = forwardPass(x,mu0,V0,model,steps)
             % Compute expected lambda
             l(:,k) = lambda(mu_(:,k),mu_c,C);
             for c = 1:size(x,1)
-                temp(:,:,c) = C(c,:)*l(c,k)*C(c,:)';
+                temp(:,:,c) = C(c,:)'*l(c,k)*C(c,:);
                 errs(:,c) = C(c,:)*(x(c,k) - l(c,k));
             end
             Sigma = sum(temp,3);
@@ -98,13 +106,33 @@ function [mu, V, mu_, V_] = forwardPass(x,mu0,V0,model,steps)
 
             % Update the predictive distribtuion using new measurements
             V(:,:,k) = inv( inv(V_(:,:,k)) + Sigma );
-            mu(:,k) = mu_(:,k) + inv(V(:,:,k))*Err;
+            mu(:,k) = mu_(:,k) + V(:,:,k)*Err;
 
         end
+        
+        % Make sure covariance matrices are symetric
+        V(:,:,k) = mean(cat(3,V(:,:,k),V(:,:,k)'),3);
+        V_(:,:,k) = mean(cat(3,V_(:,:,k),V_(:,:,k)'),3);
+        
+        % Replace Infs w/ realmax
+        V(isinf(V)) = realmax;
+        V_(isinf(V_)) = realmax;
+        
+        % Make sure covariance matrices are positive definite
+        [~,err] = cholcov(V(:,:,k));
+        if err
+            V(:,:,k) = nearestSPD(V(:,:,k));
+        end
+        [~,err] = cholcov(V_(:,:,k));
+        if err
+            V_(:,:,k) = nearestSPD(V_(:,:,k));
+        end
+        
     end
 
+    
 % Backward Pass
-function [mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps)
+function [mu, V, Vj, J] = backwardPass(muhat,mu_,Vhat,V_,model,steps)
 
     A = model.A;
     mu = muhat;
@@ -122,7 +150,15 @@ function [mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps)
             J(:,:,indx)*(mu(:,indx+1) - mu_(:,indx));
         V(:,:,indx) = Vhat(:,:,indx) + ...
             J(:,:,indx)*(V(:,:,indx+1) - V_(:,:,indx+1))*J(:,:,indx)';
-
+    
+        % Make sure covariance matrices are symetric
+        V(:,:,k) = mean(cat(3,V(:,:,k),V(:,:,k)'),3);
+        
+        % Make sure covariance matrices are positive definite
+        [~,err] = cholcov(V(:,:,k));
+        if err
+            V(:,:,k) = nearestSPD(V(:,:,k));
+        end
     end
     
     Vj(:,:,steps) = V(:,:,steps)*J(:,:,end-1)';
@@ -133,7 +169,17 @@ function [mu, V, Vj] = backwardPass(muhat,mu_,Vhat,V_,model,steps)
         % Find joint covariance
         Vj(:,:,indx) = V(:,:,indx)*J(:,:,indx-1)' + ...
             J(:,:,indx)*( Vj(:,:,indx+1) - A*Vhat(:,:,indx) )*J(:,:,indx-1)';
+        
+        % Make sure covariance matrices are symetric
+%         Vj(:,:,k) = mean(cat(3,Vj(:,:,k),Vj(:,:,k)'),3);
+        
+        % Make sure covariance matrices are positive definite
+%         [~,err] = cholcov(Vj(:,:,k));
+%         if err
+%             Vj(:,:,k) = nearestSPD(Vj(:,:,k));
+%         end        
     end
+    Vj(:,:,1) = V(:,:,1);
     
     
 % Predictive distribution

@@ -8,19 +8,33 @@
 %% Parameters
 % General
 N = 2;              % Dimensionality of the system
-M = 50;            % Measurement dimensionality
+M = 20;            % Measurement dimensionality
 T = 1000;           % Total number of time-stamps
-trials = 500;       % Total number of trials
+trials = 100;       % Total number of trials
 t = (1:T)';
 
-% Transition model;
-A = [0 -1; 1 0];        % Deterministic portion
-Gamma = [1 0; 0 1];      % Transition noise covariance
-tau = 100;
+% Transition model
+tau = 500;
+A = [1 1;...
+    -1/tau 0];
+%A = [0 -1; 1 0];        % Deterministic portion
+% A = [1  0     1  0;...
+%      0  1     0  1;...
+%      0 -1/tau 0  0;...
+%      1/tau  0 0  0];
+
+Gamma = [0.5/tau 0;...
+         0 0.5/tau];
+% Gamma = [1 0; 0 1];      % Transition noise covariance
+% Gamma = [1  0  0  0;...
+%          0  1  0  0;...
+%          0  0  1  0;...
+%          0  0  0  1]/tau;
 
 % Measurement model
-C = randn(M,N)/10;
-%Gamma = zeros(M,N);
+C = repmat([1 0],[M,1]);
+%C = randn(M,N)/10;
+%C(:,end-N/2+1:end) = 0;
 mu_c = -1;
 
 
@@ -60,41 +74,47 @@ end
 
 %% Simuate Hidden markov model
 % Initialize the matrices
-lambda = nan(T,M,trials);        % Measurements;
-X = nan(T,M,trials);        % Measurements;
-Z = nan(T,N,trials);        % Hidden state
-dZ = nan(T,N,trials);        % Change in hidden state
+lambda = nan(M,T,trials);        % Measurements;
+X = nan(M,T,trials);        % Measurements;
+Z = nan(N,T,trials);        % Hidden state
+%dZ = nan(T,N,trials);        % Change in hidden state
 
-Z(1,:,:) = repmat(ones(size(Z(1,:,1))),[1 1 trials]);
+Z(:,1,:) = repmat(ones(size(Z(:,1,1))),[1 1 trials]);
+Z(2,1,:) = 0;
 for k = 1:trials
-    lambda(1,:,k) = exp( mu_c + C*Z(1,:,k)' );
+    lambda(:,1,k) = exp( mu_c + C*Z(:,1,k) );
 end
 
 
-Z = repmat(ones(T,size(Z,2),1),[1 1 trials]);
+%Z = repmat(ones(T,size(Z,2),1),[1 1 trials]);
 % Run simulation
 for k = 1:trials
     for i = 2:T
-        % Determine change in X
-        dZ(i,:,k) = permute( A*permute(Z(i-1,:,k),[2 3 1])...
-            + Gamma*randn(N,1), [3 1 2] )/tau;
-        
-        % Update X
-        Z(i,:,k) = Z(i-1,:,k) + dZ(i,:,k);
+        Z(:,i,k) = A*Z(:,i-1,k) + mvnrnd([0;0],Gamma)'; %mGamma*randn(N,1);
+%         % Determine change in Z
+%         dZ(i,:,k) = permute( A*permute(Z(i-1,:,k),[2 3 1])...
+%             + Gamma*randn(N,1), [3 1 2] )/tau;
+%         
+%         % Update Z
+%         Z(i,:,k) = Z(i-1,:,k) + dZ(i,:,k);
         
         % Generate spiking responses
-        lambda(i,:,k) = exp( mu_c + C*Z(i,:,k)' );
+        lambda(:,i,k) = exp( mu_c + C*Z(:,i,k) );
         
     end
 end
-X = poissrnd(lambda);
+X = double(lambda > rand(size(lambda)));
+%X = poissrnd(lambda);
+% X(X > 1) = 1;
 
 %% Fit model to the data
-model0.A = A;
-model0.Gamma = Gamma;
-model0.mu_c = mu_c*ones(M,1);
-model0.C = C;
-[model, LL] = identifyGLMHS_EM(permute(X(:,:,1),[2 1]),model0);
+model0.A = A+randn(size(A))/10;
+model0.Gamma = Gamma;%+randn(size(Gamma))/10;
+% model0.Gamma = (model0.Gamma + model0.Gamma')/2;
+model0.mu_c = mu_c*ones(M,1) +randn(M,1)/10; 
+model0.C = C+randn(size(C))/10;
+[model, LL, z, V, Vj, Vhat, V_, muhat, mu_] = ...
+    identifyGLMHS_EM(X,model0,'mu0',Z(:,1,:),'verbose',true);
 
 %% Calculate some statistics
 % Mean and variance of x(i)
@@ -105,19 +125,19 @@ Xbar = mean(X,3);%mean(Y,3);
 Xvar = var(X,[],3);%var(Y,[],3);
 
 %% Perform PCA
-Sigma = cov(Xbar);
-[V, D] = eig(Sigma);
+Sigma = cov(Xbar');
+[Q, D] = eig(Sigma);
 D = flipud(diag(D))/sum(diag(D));
-V = fliplr(V);
+Q = fliplr(Q);
 
-YhatBar = Xbar*V;
+YhatBar = Xbar'*Q;
 
 for i = 1:trials
-    Yhat(:,:,i) = X(:,:,i)*V;
+    Yhat(:,:,i) = X(:,:,i)'*Q;
 end
 dYhat = diff(Yhat,1);
 
-states = linspace(min(Yhat(:)),max(Yhat(:)),50);
+states = linspace(min(Yhat(:)),max(Yhat(:)),80);
 [STATES{1}, STATES{2}] = meshgrid(states);
 [INDX{1}, INDX{2}] = meshgrid(1:length(states));
 indx = [INDX{1}(:) INDX{2}(:)];
@@ -136,7 +156,8 @@ for indxi = 1:size(indx,1)
     mdY(indxi,1) = mean(dytemp1(accept));
     mdY(indxi,2) = mean(dytemp2(accept));
 end
-
+mdY2 = mdY;
+mdY2(n2/sum(n2) < 0.0001,:) = NaN;
 
 %% Fit to the mean
 % Theta0 = [1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]...
@@ -156,9 +177,9 @@ figure('Name','Hidden states and measurements')
 trialinds = ceil(rand(2,1)*trials);
 for j = 1:N
     subplot(N,1,j)
-    plot(squeeze(Y(:,j,trialinds)),'o','Color',[0.7 0.7 0.7])
+    plot(squeeze(X(j,:,trialinds)),'o','Color',[0.7 0.7 0.7])
     hold on
-    plot(squeeze(Z(:,j,trialinds)))
+    plot(squeeze(Z(j,:,trialinds)))
 end
 
 % Plot a random subset of trials and the mean/var
@@ -166,23 +187,34 @@ figure('Name','Mean and var of X')
 trialinds2 = ceil(rand(nexamps,1)*trials);
 for j = 1:N
     subplot(N,1,j)
-    h = myPatch(t,Zbar(:,j),sqrt(Zvar(:,j)),'patchProperties',patchProperties{j});
+    h = myPatch(t,Zbar(j,:)',sqrt(Zvar(j,:))','patchProperties',patchProperties{j});
     hold on
-    plot(t,squeeze(Z(:,j,trialinds2)),'Color',colors(j,:))
+    plot(t,squeeze(Z(j,:,trialinds2)),'Color',colors(j,:))
     %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
     
-    plot(t,Zbar(:,j),'Color',colors(j,:),'LineWidth',3)
+    plot(t,Zbar(j,:),'Color',colors(j,:),'LineWidth',3)
 end
 
 
-figure('Name','Mean and var of Y')
+figure('Name','Mean and var of X')
 trialinds2 = ceil(rand(nexamps,1)*trials);
-for j = 1:M
-    subplot(M,1,j)
-    h = myPatch(t,Xbar(:,j),sqrt(Xvar(:,j)),'patchProperties',patchProperties{j});
+for j = 1:3
+    subplot(3,1,j)
+    h = myPatch(t,Xbar(j,:)',sqrt(Xvar(j,:))','patchProperties',patchProperties{j});
     hold on
-    plot(t,squeeze(Y(:,j,trialinds2)),'Color',colors(j,:))
+    %plot(t,squeeze(X(j,:,trialinds2)),'Color',colors(j,:))
     %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
     
-    plot(t,Xbar(:,j),'Color',colors(j,:),'LineWidth',3)
+    plot(t,Xbar(j,:),'Color',colors(j,:),'LineWidth',3)
 end
+
+figure('Name','Inferred state of Z from X, PCA')
+for j = 1:N
+    subplot(N,1,j)
+    plot(t,YhatBar(:,j)/max(YhatBar(:,j)),'LineWidth',3,'Color',[0.6 0.6 0.6])
+    hold on
+    plot(t,Zbar(j,:)/max(Zbar(j,:)),'LineWidth',3,'Color',[0 0 0])
+end
+
+figure('Name','Eigenvalues from PCA')
+plot(cumsum(D),'ko')

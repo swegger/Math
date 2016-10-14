@@ -48,6 +48,7 @@ p = 1;
 k = 0;
 while p ~= 0
   [R,p] = chol(Ahat);
+%   [~,p] = cholcov(Ahat);
   k = k + 1;
   if p ~= 0
     % Ahat failed the chol test. It must have been just a hair off,
