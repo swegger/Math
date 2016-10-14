@@ -7,14 +7,16 @@
 
 %% Parameters
 % General
-N = 2;              % Dimensionality of the system
+N = 4;              % Dimensionality of the system
 M = 50;            % Measurement dimensionality
 T = 1000;           % Total number of time-stamps
-trials = 500;       % Total number of trials
+trials = 50;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-A = [0 -1; 1 0];        % Deterministic portion
+Sig0 = 7.5;
+A = [
+A = [-0.15 -0.5; 0.5 -0.15];        % Deterministic portion
 SigT = [1 0; 0 1];      % Transition noise covariance
 tau = 100;
 
@@ -34,7 +36,7 @@ BasisSet.h = BasisSet.k;
 % Measurement model
 Beta = randn(M,N);
 Gamma = zeros(M,N);
-mu_c = 0;
+mu_c = -2;
 % Beta = 0.01*flipud(BasisSet.k(2,:)');
 % Gamma = -0.005*flipud(BasisSet.h(1,:)');
 % GammaSize = length(Gamma);
@@ -97,17 +99,17 @@ end
 %% Simuate Hidden markov model
 % Initialize the matrices
 lambda = nan(T,M,trials);        % Measurements;
-spikes = nan(T,M,trials);        % Measurements;
+Y = nan(T,M,trials);        % Measurements;
 X = nan(T,N,trials);        % Hidden state
 dX = nan(T,N,trials);        % Change in hidden state
 
-X(1,:,:) = repmat(ones(size(X(1,:,1))),[1 1 trials]);
+X(1,:,:) = 0.5*repmat(ones(size(X(1,:,1))),[1 1 trials]) + randn(size(X(1,:,:)))*Sig0;
 % tempBeta = reshape(Beta(end,:,:),[N, M])';
 for k = 1:trials
     lambda(1,:,k) = exp( mu_c + Beta*X(1,:,k)' );
 %     lambda(1,:,k) = exp( mu_c + tempBeta*X(1,:,k)' );
 end
-%spikes(1,:,:) = poissrnd(lambda(1,:,:));
+%Y(1,:,:) = poissrnd(lambda(1,:,:));
 
 
 X = repmat(randn(T,size(X,2),1),[1 1 trials]);
@@ -115,8 +117,9 @@ X = repmat(randn(T,size(X,2),1),[1 1 trials]);
 for k = 1:trials
     for i = 2:T
         % Determine change in X
+        Noise(i,:,k) = mvnrnd(zeros(N,1),SigT);
         dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
-            + SigT*randn(N,1), [3 1 2] )/tau;
+            + Noise(i,:,k)', [3 1 2] )/tau;
         
         % Update X
         X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
@@ -127,19 +130,23 @@ for k = 1:trials
 %             tempBeta = reshape(Beta(end-i+1:end,:,:),[length(1:i)*N M])';
 %             lambda(i,:,k) = exp( mu_c + ...
 %                 tempBeta*reshape(X(1:i,:,k),numel(X(1:i,:,k)),1) + ...
-%                 diag(Gamma(end-i+2:end,:)'*spikes(1:i-1,:,k)) );
+%                 diag(Gamma(end-i+2:end,:)'*Y(1:i-1,:,k)) );
 %         else
 %             tempBeta = reshape(Beta,[BetaSize*N M])';
 %             lambda(i,:,k) = exp( mu_c +...
 %                 tempBeta*reshape(X(i-BetaSize+1:i,:,k),numel(X(i-BetaSize+1:i,:,k)),1) + ...
-%                 diag(Gamma'*spikes(i-GammaSize:i-1,:,k)) );
+%                 diag(Gamma'*Y(i-GammaSize:i-1,:,k)) );
 %         end
 
-%         spikes(i,:,k) = poissrnd(lambda(i,:,k));
+%         Y(i,:,k) = poissrnd(lambda(i,:,k));
         
     end
+    for uniti = 1:M
+        Y(:,uniti,k) = smooth(double(lambda(:,uniti,k) > rand(size(lambda(:,uniti,k)))),50);
+    end
 end
-spikes = poissrnd(lambda);
+%Y = double(lambda > rand(size(lambda)));
+% Y = poissrnd(lambda);
 
 %% Fit model to the data
 mu_ini = 0;
@@ -147,15 +154,15 @@ k_ini = [0 1 0 0 0 0 0 0 0 0];
 h_ini = [-1 0 0 0 0 0 0 0 0 0];
 optMethod = 'ML';
 sigma = 0.5;
-[mu, k, h, llike, exitflg, output] = LNP_fitter(X(:,:,:),spikes(:,:,:),mu_ini,k_ini,h_ini,'optMethod',optMethod,'BasisSet',BasisSet);
+[mu, k, h, llike, exitflg, output] = LNP_fitter(X(:,:,:),Y(:,:,:),mu_ini,k_ini,h_ini,'optMethod',optMethod,'BasisSet',BasisSet);
 
 %% Calculate some statistics
 % Mean and variance of x(i)
 Xbar = mean(X,3);
 Xvar = var(X,[],3);
 
-Ybar = mean(spikes,3);%mean(Y,3);
-Yvar = var(spikes,[],3);%var(Y,[],3);
+Ybar = mean(Y,3);%mean(Y,3);
+Yvar = var(Y,[],3);%var(Y,[],3);
 
 %% Perform PCA
 Sigma = cov(Ybar);
@@ -166,11 +173,11 @@ V = fliplr(V);
 YhatBar = Ybar*V;
 
 for i = 1:trials
-    Yhat(:,:,i) = spikes(:,:,i)*V;
+    Yhat(:,:,i) = Y(:,:,i)*V;
 end
 dYhat = diff(Yhat,1);
 
-states = linspace(min(Yhat(:)),max(Yhat(:)),50);
+states = linspace(min(Yhat(:)),max(Yhat(:)),40);
 [STATES{1}, STATES{2}] = meshgrid(states);
 [INDX{1}, INDX{2}] = meshgrid(1:length(states));
 indx = [INDX{1}(:) INDX{2}(:)];
@@ -212,14 +219,14 @@ upperBound = [Theta0(1:N)+0.01 ones(1,N^2)/10 inf(1,N*M)];
 %% Plot the output
 
 % Hidden States and measurements across trials
-figure('Name','Hidden states and measurements')
-trialinds = ceil(rand(2,1)*trials);
-for j = 1:N
-    subplot(N,1,j)
-    plot(squeeze(Y(:,j,trialinds)),'o','Color',[0.7 0.7 0.7])
-    hold on
-    plot(squeeze(X(:,j,trialinds)))
-end
+% figure('Name','Hidden states and measurements')
+% trialinds = ceil(rand(2,1)*trials);
+% for j = 1:N
+%     subplot(N,1,j)
+%     plot(squeeze(Y(:,j,trialinds)),'o','Color',[0.7 0.7 0.7])
+%     hold on
+%     plot(squeeze(X(:,j,trialinds)))
+% end
 
 % Plot a random subset of trials and the mean/var
 figure('Name','Mean and var of X')
@@ -237,12 +244,34 @@ end
 
 figure('Name','Mean and var of Y')
 trialinds2 = ceil(rand(nexamps,1)*trials);
-for j = 1:M
-    subplot(M,1,j)
+for j = 1:3
+    subplot(3,1,j)
     h = myPatch(t,Ybar(:,j),sqrt(Yvar(:,j)),'patchProperties',patchProperties{j});
     hold on
-    plot(t,squeeze(Y(:,j,trialinds2)),'Color',colors(j,:))
-    %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
+%     plot(t,squeeze(Y(:,j,trialinds2)),'Color',colors(j,:))
     
     plot(t,Ybar(:,j),'Color',colors(j,:),'LineWidth',3)
+    axis tight
 end
+
+% PCA
+figure('Name','PCA')
+subplot(1,2,1)
+contour(STATES{1},STATES{2},reshape(n2,size(STATES{1})))
+colormap cool
+hold on
+allstates = [STATES{1}(:) STATES{2}(:)];
+cutoff = 0.001;
+quiver(allstates(n2/sum(n2) > cutoff,1),allstates(n2/sum(n2) > cutoff,2),...
+    mdY(n2/sum(n2) > cutoff,1),mdY(n2/sum(n2) > cutoff,2),2,'Color',[0 0 0])
+plot(YhatBar(:,1),YhatBar(:,2),'.-','LineWidth',3,'Color',[1 0 0])
+plot(YhatBar(1,1),YhatBar(1,2),'o','MarkerSize',10,'Color',[1 0 0])
+plot(YhatBar(end,1),YhatBar(end,2),'s','MarkerSize',10,'Color',[1 0 0])
+axis([-3 3 -3 3])
+axis square
+mymakeaxis(gca)
+
+subplot(1,2,2)
+plot(cumsum(D),'ko')
+axis square
+mymakeaxis(gca)
