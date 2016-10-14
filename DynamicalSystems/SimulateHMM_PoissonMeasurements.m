@@ -14,11 +14,18 @@ trials = 50;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-Sig0 = 7.5;
-A = [
-A = [-0.15 -0.5; 0.5 -0.15];        % Deterministic portion
-SigT = [1 0; 0 1];      % Transition noise covariance
+Sig0 = 0.25;
+%A = [-0.15 -0.5; 0.5 -0.15];        % Deterministic portion
+%SigT = [1 0; 0 1];      % Transition noise covariance
 tau = 100;
+SigT = [5 0 0 0;...
+        0 5 0 0;...
+        0 0 0.5 0;...
+        0 0 0 0.5];
+A = [0.999*tau  0 1  0;...
+     0  0.999*tau 0  1;...
+     0 -0.5*tau 0  0;...
+     0.5*tau  0 0  0];
 
 % For fitting
 BetaSize = 100;
@@ -34,7 +41,7 @@ end
 BasisSet.h = BasisSet.k;
 
 % Measurement model
-Beta = randn(M,N);
+Beta = [randn(M,2) zeros(M,2)];%randn(M,N);
 Gamma = zeros(M,N);
 mu_c = -2;
 % Beta = 0.01*flipud(BasisSet.k(2,:)');
@@ -103,7 +110,7 @@ Y = nan(T,M,trials);        % Measurements;
 X = nan(T,N,trials);        % Hidden state
 dX = nan(T,N,trials);        % Change in hidden state
 
-X(1,:,:) = 0.5*repmat(ones(size(X(1,:,1))),[1 1 trials]) + randn(size(X(1,:,:)))*Sig0;
+X(1,:,:) = 1*repmat(ones(size(X(1,:,1))),[1 1 trials]) + randn(size(X(1,:,:)))*Sig0;
 % tempBeta = reshape(Beta(end,:,:),[N, M])';
 for k = 1:trials
     lambda(1,:,k) = exp( mu_c + Beta*X(1,:,k)' );
@@ -112,17 +119,18 @@ end
 %Y(1,:,:) = poissrnd(lambda(1,:,:));
 
 
-X = repmat(randn(T,size(X,2),1),[1 1 trials]);
+% X = repmat(randn(T,size(X,2),1),[1 1 trials]);
 % Run simulation
 for k = 1:trials
     for i = 2:T
         % Determine change in X
         Noise(i,:,k) = mvnrnd(zeros(N,1),SigT);
-        dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
-            + Noise(i,:,k)', [3 1 2] )/tau;
+%         dX(i,:,k) = permute( A*permute(X(i-1,:,k),[2 3 1])...
+%             + Noise(i,:,k)', [3 1 2] )/tau;
         
         % Update X
-        X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
+%         X(i,:,k) = X(i-1,:,k) + dX(i,:,k);
+        X(i,:,k) = (A*X(i-1,:,k)' + Noise(i,:,k)')/tau;
         
         % Generate spiking responses
         lambda(i,:,k) = exp( mu_c + Beta*X(i,:,k)' );
@@ -264,7 +272,7 @@ allstates = [STATES{1}(:) STATES{2}(:)];
 cutoff = 0.001;
 quiver(allstates(n2/sum(n2) > cutoff,1),allstates(n2/sum(n2) > cutoff,2),...
     mdY(n2/sum(n2) > cutoff,1),mdY(n2/sum(n2) > cutoff,2),2,'Color',[0 0 0])
-plot(YhatBar(:,1),YhatBar(:,2),'.-','LineWidth',3,'Color',[1 0 0])
+plot(YhatBar(:,1),YhatBar(:,2),'.-','LineWidth',1,'Color',[1 0 0])
 plot(YhatBar(1,1),YhatBar(1,2),'o','MarkerSize',10,'Color',[1 0 0])
 plot(YhatBar(end,1),YhatBar(end,2),'s','MarkerSize',10,'Color',[1 0 0])
 axis([-3 3 -3 3])
