@@ -14,31 +14,31 @@ trials = 50;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-Sig0 = 0.25;
+Sig0 = 0.3;
 %A = [-0.15 -0.5; 0.5 -0.15];        % Deterministic portion
 %SigT = [1 0; 0 1];      % Transition noise covariance
-tau = 100;
+tau = 200;
 SigT = [5 0 0 0;...
         0 5 0 0;...
         0 0 0.5 0;...
         0 0 0 0.5];
-A = [0.999*tau  0 1  0;...
-     0  0.999*tau 0  1;...
-     0 -0.5*tau 0  0;...
-     0.5*tau  0 0  0];
+A = [0.9975*tau  0 1  0;...
+     0  0.9975*tau 0  1;...
+     0 -0.7*tau 0  0;...
+     0.7*tau  0 0  0];
 
 % For fitting
-BetaSize = 100;
-omega = linspace(0,2*pi,BetaSize);
-BasisN = 10;
-psi = BasisN/4*ones(1,BasisN);
-phi = (0:pi/2:BasisN*pi/2);%linspace(0,2*pi,BasisN);
-for i = 1:BasisN
-    BasisSet.k(i,:) = zeros(1,length(omega));
-    q = omega > (-pi/2 + phi(i))/psi(i) & omega < (pi/2 + phi(i))/psi(i);
-    BasisSet.k(i,q) = ( cos( omega(q)*psi(i) - phi(i) ) );
-end
-BasisSet.h = BasisSet.k;
+% BetaSize = 100;
+% omega = linspace(0,2*pi,BetaSize);
+% BasisN = 10;
+% psi = BasisN/4*ones(1,BasisN);
+% phi = (0:pi/2:BasisN*pi/2);%linspace(0,2*pi,BasisN);
+% for i = 1:BasisN
+%     BasisSet.k(i,:) = zeros(1,length(omega));
+%     q = omega > (-pi/2 + phi(i))/psi(i) & omega < (pi/2 + phi(i))/psi(i);
+%     BasisSet.k(i,q) = ( cos( omega(q)*psi(i) - phi(i) ) );
+% end
+% BasisSet.h = BasisSet.k;
 
 % Measurement model
 Beta = [randn(M,2) zeros(M,2)];%randn(M,N);
@@ -203,6 +203,8 @@ for indxi = 1:size(indx,1)
     n2(indxi,1) = sum(accept);
     mdY(indxi,1) = mean(dytemp1(accept));
     mdY(indxi,2) = mean(dytemp2(accept));
+%     q(indxi,1) = mean( 1/2 *  sum(abs([dytemp1(accept) dytemp2(accept)]).^2) );
+    q(indxi,1) = mean( 1/2 *  sum(abs([mdY(indxi,1) mdY(indxi,2)]).^2) );
 end
 
 % for indxi = 1:size(indx,1)
@@ -265,7 +267,7 @@ end
 % PCA
 figure('Name','PCA')
 subplot(1,2,1)
-contour(STATES{1},STATES{2},reshape(n2,size(STATES{1})))
+contour(STATES{1},STATES{2},log(reshape(n2,size(STATES{1}))))
 colormap cool
 hold on
 allstates = [STATES{1}(:) STATES{2}(:)];
@@ -283,3 +285,7 @@ subplot(1,2,2)
 plot(cumsum(D),'ko')
 axis square
 mymakeaxis(gca)
+
+figure('Name','q')
+surf(STATES{1},STATES{2},log(reshape(q,size(STATES{1}))),'EdgeColor','none')
+colormap cool
