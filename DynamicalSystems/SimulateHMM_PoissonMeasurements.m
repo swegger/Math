@@ -14,7 +14,11 @@ trials = 50;       % Total number of trials
 t = (1:T)';
 
 % Transition model;
-Sig0 = 0.3;
+mu0 = [1 1 0 0];
+Sig0 = [ 0.10 -0.05 0 0;...
+        -0.05  0.10 0 0;...
+         0     0    0 0;...
+         0     0    0 0];
 %A = [-0.15 -0.5; 0.5 -0.15];        % Deterministic portion
 %SigT = [1 0; 0 1];      % Transition noise covariance
 tau = 200;
@@ -22,10 +26,10 @@ SigT = [5 0 0 0;...
         0 5 0 0;...
         0 0 0.5 0;...
         0 0 0 0.5];
-A = [0.9975*tau  0 1  0;...
-     0  0.9975*tau 0  1;...
-     0 -0.7*tau 0  0;...
-     0.7*tau  0 0  0];
+A = [1*tau  0 1  0;...
+     0  1*tau 0  1;...
+     -0.1*tau -0.7*tau 0  0;...
+     0.7*tau  -0.1*tau 0  0];
 
 % For fitting
 % BetaSize = 100;
@@ -110,9 +114,9 @@ Y = nan(T,M,trials);        % Measurements;
 X = nan(T,N,trials);        % Hidden state
 dX = nan(T,N,trials);        % Change in hidden state
 
-X(1,:,:) = 1*repmat(ones(size(X(1,:,1))),[1 1 trials]) + randn(size(X(1,:,:)))*Sig0;
 % tempBeta = reshape(Beta(end,:,:),[N, M])';
 for k = 1:trials
+    X(1,:,k) = mu0 + mvnrnd(zeros(1,N),Sig0);
     lambda(1,:,k) = exp( mu_c + Beta*X(1,:,k)' );
 %     lambda(1,:,k) = exp( mu_c + tempBeta*X(1,:,k)' );
 end
@@ -157,12 +161,12 @@ end
 % Y = poissrnd(lambda);
 
 %% Fit model to the data
-mu_ini = 0;
-k_ini = [0 1 0 0 0 0 0 0 0 0];
-h_ini = [-1 0 0 0 0 0 0 0 0 0];
-optMethod = 'ML';
-sigma = 0.5;
-[mu, k, h, llike, exitflg, output] = LNP_fitter(X(:,:,:),Y(:,:,:),mu_ini,k_ini,h_ini,'optMethod',optMethod,'BasisSet',BasisSet);
+% mu_ini = 0;
+% k_ini = [0 1 0 0 0 0 0 0 0 0];
+% h_ini = [-1 0 0 0 0 0 0 0 0 0];
+% optMethod = 'ML';
+% sigma = 0.5;
+% [mu, k, h, llike, exitflg, output] = LNP_fitter(X(:,:,:),Y(:,:,:),mu_ini,k_ini,h_ini,'optMethod',optMethod,'BasisSet',BasisSet);
 
 %% Calculate some statistics
 % Mean and variance of x(i)
@@ -216,15 +220,15 @@ end
 
 
 %% Fit to the mean
-Theta0 = [1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]...
-    + 0.000001*randn(size([1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]));
-constraintA = [zeros(1,N) reshape(diag(ones(1,N)),1,numel(diag(ones(1,N)))) zeros(1,N*M)];
-constraintb = 0;        % Constrain trace(A) <= 0
-lowerBound = [Theta0(1:N)-0.01 -ones(1,N^2)/10 -inf(1,N*M)];
-upperBound = [Theta0(1:N)+0.01 ones(1,N^2)/10 inf(1,N*M)];
-[x0, Ahat, Betahat, Xhat, Yhat] = fitLDSmean(Ybar,N,'Theta0',Theta0,...
-    'constraintA',constraintA,'constraintb',constraintb,...
-    'lowerBound',lowerBound,'upperBound',upperBound);
+% Theta0 = [1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]...
+%     + 0.000001*randn(size([1 0 reshape(A,1,numel(A)) reshape(Beta,1,numel(Beta))]));
+% constraintA = [zeros(1,N) reshape(diag(ones(1,N)),1,numel(diag(ones(1,N)))) zeros(1,N*M)];
+% constraintb = 0;        % Constrain trace(A) <= 0
+% lowerBound = [Theta0(1:N)-0.01 -ones(1,N^2)/10 -inf(1,N*M)];
+% upperBound = [Theta0(1:N)+0.01 ones(1,N^2)/10 inf(1,N*M)];
+% [x0, Ahat, Betahat, Xhat, Yhat] = fitLDSmean(Ybar,N,'Theta0',Theta0,...
+%     'constraintA',constraintA,'constraintb',constraintb,...
+%     'lowerBound',lowerBound,'upperBound',upperBound);
 
 %% Plot the output
 
@@ -251,6 +255,16 @@ for j = 1:N
     plot(t,Xbar(:,j),'Color',colors(j,:),'LineWidth',3)
 end
 
+figure('Name','Example trajectories, first two dims')
+plot(squeeze(X(:,1,trialinds2)),squeeze(X(:,2,trialinds2)),'.-','Color',[0.6 0.6 0.6]);
+hold on
+plot(squeeze(X(1,1,trialinds2)),squeeze(X(1,2,trialinds2)),'o','Color',[0.6 0.6 0.6]);
+plot(squeeze(X(end,1,trialinds2)),squeeze(X(end,2,trialinds2)),'s','Color',[0.6 0.6 0.6]);
+plot(Xbar(:,1),Xbar(:,2),'.-','Color',[0 0 0],'LineWidth',2,'MarkerSize',10);
+plot(Xbar(1,1),Xbar(1,2),'o','Color',[0 0 0],'MarkerSize',10);
+plot(Xbar(end,1),Xbar(end,2),'s','Color',[0 0 0],'MarkerSize',10);
+xlabel('x_1')
+ylabel('x_2')
 
 figure('Name','Mean and var of Y')
 trialinds2 = ceil(rand(nexamps,1)*trials);
@@ -279,12 +293,12 @@ plot(YhatBar(1,1),YhatBar(1,2),'o','MarkerSize',10,'Color',[1 0 0])
 plot(YhatBar(end,1),YhatBar(end,2),'s','MarkerSize',10,'Color',[1 0 0])
 axis([-3 3 -3 3])
 axis square
-mymakeaxis(gca)
+%mymakeaxis(gca)
 
 subplot(1,2,2)
 plot(cumsum(D),'ko')
 axis square
-mymakeaxis(gca)
+%mymakeaxis(gca)
 
 figure('Name','q')
 surf(STATES{1},STATES{2},log(reshape(q,size(STATES{1}))),'EdgeColor','none')
