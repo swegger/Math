@@ -188,7 +188,7 @@ function LL = logLikelihood(x,mu_,V_,samples,mu_c,C)
     % model parameters
     for triali = 1:size(x,3)
         for k = 1:size(x,2)
-            Generate samples of hidden varialbe
+            % Generate samples of hidden varialbe
             q_samp = mvnrnd(mu_(:,k,triali),V_(:,:,k,triali),samples);
             for sampi = 1:samples
                 for c = 1:size(x,1)

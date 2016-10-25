@@ -10,7 +10,7 @@
 N = 2;              % Dimensionality of the system
 M = 20;            % Measurement dimensionality
 T = 1000;           % Total number of time-stamps
-trials = 100;       % Total number of trials
+trials = 5;       % Total number of trials
 t = (1:T)';
 
 % Transition model
