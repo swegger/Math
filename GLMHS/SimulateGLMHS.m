@@ -71,6 +71,7 @@ colors = [0    0.4470    0.7410;...
 for i = 1:min([M size(colors,1)])
     patchProperties{i}.FaceColor = colors(i,:) + 0.5*(ones(1,3)-colors(i,:));
 end
+plotflg = false;
 
 %% Simuate Hidden markov model
 % Initialize the matrices
@@ -171,7 +172,7 @@ mdY2(n2/sum(n2) < 0.0001,:) = NaN;
 %     'lowerBound',lowerBound,'upperBound',upperBound);
 
 %% Plot the output
-
+if plotflg
 % Hidden States and measurements across trials
 figure('Name','Hidden states and measurements')
 trialinds = ceil(rand(2,1)*trials);
@@ -218,3 +219,7 @@ end
 
 figure('Name','Eigenvalues from PCA')
 plot(cumsum(D),'ko')
+end
+
+%% Save
+save(['/om/user/swegger/analysis/SimulationResults/SimGLMHS_Test' datestr(now,'yyyymmdd')])
