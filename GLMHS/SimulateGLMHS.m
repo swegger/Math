@@ -173,52 +173,52 @@ mdY2(n2/sum(n2) < 0.0001,:) = NaN;
 
 %% Plot the output
 if plotflg
-% Hidden States and measurements across trials
-figure('Name','Hidden states and measurements')
-trialinds = ceil(rand(2,1)*trials);
-for j = 1:N
-    subplot(N,1,j)
-    plot(squeeze(X(j,:,trialinds)),'o','Color',[0.7 0.7 0.7])
-    hold on
-    plot(squeeze(Z(j,:,trialinds)))
-end
-
-% Plot a random subset of trials and the mean/var
-figure('Name','Mean and var of X')
-trialinds2 = ceil(rand(nexamps,1)*trials);
-for j = 1:N
-    subplot(N,1,j)
-    h = myPatch(t,Zbar(j,:)',sqrt(Zvar(j,:))','patchProperties',patchProperties{j});
-    hold on
-    plot(t,squeeze(Z(j,:,trialinds2)),'Color',colors(j,:))
-    %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
+    % Hidden States and measurements across trials
+    figure('Name','Hidden states and measurements')
+    trialinds = ceil(rand(2,1)*trials);
+    for j = 1:N
+        subplot(N,1,j)
+        plot(squeeze(X(j,:,trialinds)),'o','Color',[0.7 0.7 0.7])
+        hold on
+        plot(squeeze(Z(j,:,trialinds)))
+    end
     
-    plot(t,Zbar(j,:),'Color',colors(j,:),'LineWidth',3)
-end
-
-
-figure('Name','Mean and var of X')
-trialinds2 = ceil(rand(nexamps,1)*trials);
-for j = 1:3
-    subplot(3,1,j)
-    h = myPatch(t,Xbar(j,:)',sqrt(Xvar(j,:))','patchProperties',patchProperties{j});
-    hold on
-    %plot(t,squeeze(X(j,:,trialinds2)),'Color',colors(j,:))
-    %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
+    % Plot a random subset of trials and the mean/var
+    figure('Name','Mean and var of X')
+    trialinds2 = ceil(rand(nexamps,1)*trials);
+    for j = 1:N
+        subplot(N,1,j)
+        h = myPatch(t,Zbar(j,:)',sqrt(Zvar(j,:))','patchProperties',patchProperties{j});
+        hold on
+        plot(t,squeeze(Z(j,:,trialinds2)),'Color',colors(j,:))
+        %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
+        
+        plot(t,Zbar(j,:),'Color',colors(j,:),'LineWidth',3)
+    end
     
-    plot(t,Xbar(j,:),'Color',colors(j,:),'LineWidth',3)
-end
-
-figure('Name','Inferred state of Z from X, PCA')
-for j = 1:N
-    subplot(N,1,j)
-    plot(t,YhatBar(:,j)/max(YhatBar(:,j)),'LineWidth',3,'Color',[0.6 0.6 0.6])
-    hold on
-    plot(t,Zbar(j,:)/max(Zbar(j,:)),'LineWidth',3,'Color',[0 0 0])
-end
-
-figure('Name','Eigenvalues from PCA')
-plot(cumsum(D),'ko')
+    
+    figure('Name','Mean and var of X')
+    trialinds2 = ceil(rand(nexamps,1)*trials);
+    for j = 1:3
+        subplot(3,1,j)
+        h = myPatch(t,Xbar(j,:)',sqrt(Xvar(j,:))','patchProperties',patchProperties{j});
+        hold on
+        %plot(t,squeeze(X(j,:,trialinds2)),'Color',colors(j,:))
+        %plot(t,squeeze(Y(:,1,trialinds2(end))),'o','Color',colors(j,:))
+        
+        plot(t,Xbar(j,:),'Color',colors(j,:),'LineWidth',3)
+    end
+    
+    figure('Name','Inferred state of Z from X, PCA')
+    for j = 1:N
+        subplot(N,1,j)
+        plot(t,YhatBar(:,j)/max(YhatBar(:,j)),'LineWidth',3,'Color',[0.6 0.6 0.6])
+        hold on
+        plot(t,Zbar(j,:)/max(Zbar(j,:)),'LineWidth',3,'Color',[0 0 0])
+    end
+    
+    figure('Name','Eigenvalues from PCA')
+    plot(cumsum(D),'ko')
 end
 
 %% Save
