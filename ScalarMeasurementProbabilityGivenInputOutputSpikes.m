@@ -1,12 +1,24 @@
-function [logp, p] = ScalarMeasurementProbabilityGivenInputOutput(...
-    s,o,m,wm,wo,smin,smax,varargin)
+function [logp, p] = ScalarMeasurementProbabilityGivenInputOutputSpikes(...
+    s,o,r,neuralModel,m,wm,wo,smin,smax,varargin)
 %% ScalarMeasurementProbabilityGivenInputOutput
 %
-%   p = ScalarMeasurementProbabilityGivenInputOutput(s,o,m,wm,wp,smin,smax)
+%   p = InferMeasurementsWithSpikes(s,o,r,m,wm,wp,smin,smax)
 %       Determines the probability of a vector of n measurements given the
 %       input, s, to a system and its output, o, under the BLS model for
 %       optimal estimation with a uniform prior distribution between smin
-%       and smax.
+%       and smax and a spike enocoding model of the form:
+%
+%           p(r_i|m) = \lambda_i^{r_i}exp(-\lambda_i) / r_i!
+%
+%       with \lambda_i being the deterministic encoding model between m_1, 
+%       m_2 and the response of neuron i, r_i. The form of the encoding
+%       model and its parameters should be stored in the structure
+%       neuralModel with the fields:
+%           neuralModel(i).f - user defined function of m
+%                              neuralModel(i).params
+%                            - e.g. f(m,neuralModel(i).params)
+%           neuralModel(i).params - parameters of model fit to data
+%           
 %
 %%
 
@@ -22,6 +34,8 @@ Parser = inputParser;
 
 addRequired(Parser,'s')
 addRequired(Parser,'o')
+addRequired(Parser,'r')
+addRequired(Parser,'neuralModel')
 addRequired(Parser,'m')
 addRequired(Parser,'wm')
 addRequired(Parser,'wo')
@@ -30,10 +44,12 @@ addRequired(Parser,'smax')
 addParameter(Parser,'EstimatorOptions',EstimatorOptions_default)
 addParameter(Parser,'Normalization',Normalization_default)
 
-parse(Parser,s,o,m,wm,wo,smin,smax,varargin{:})
+parse(Parser,s,o,r,neuralModel,m,wm,wo,smin,smax,varargin{:})
 
 s = Parser.Results.s;
 o = Parser.Results.o;
+r = Parser.Results.r;
+neuralModel = Parser.Results.neuralModel;
 m = Parser.Results.m;
 wm = Parser.Results.wm;
 wo = Parser.Results.wo;
@@ -75,7 +91,7 @@ else
     probMtakeS = (1/sqrt(2*pi)/wm./S).^N .* exp( -(sum((repmat(S,[1,N,1])-M).^2,2))./(2*wm.^2.*S.^2) );
 end
 
-%% Probability of o given, m
+%% Probability of o given m
 if isnan(o)
     probOtakeM = 1;
 else
@@ -83,6 +99,20 @@ else
         'estimator',EstimatorOptions.estimator_opts,'prior',EstimatorOptions.prior);
     E = repmat(e,[1, 1, size(o,1)]);
     probOtakeM = ( 1/sqrt(2*pi)/wo./E ) .* exp( -(O-E).^2 ./ (2*wo^2*E.^2) );
+end
+
+%% Probability of r given m
+logprobRtakeM = zeros(size(probOtakeM));
+for neuroni = 1:size(r,2)
+    lambda = repmat(neuralModel(neuroni).f(M,neuralModel(neuroni).params),...
+        [1, 1, size(s,1)]);
+    probabilisticResponse = log(...
+        lambda.^repmat(permute(r(:,neuroni),[3 2 1]),[size(lambda,1), 1, 1])...
+        .* exp( -lambda ) ./ ...
+        factorial(repmat(permute(r(:,neuroni),[3 2 1]),[size(lambda,1), 1, 1]))...
+        );
+                          
+    logprobRtakeM = logprobRtakeM + probabilisticResponse;
 end
 
 %% Normalization factor
@@ -99,9 +129,17 @@ switch Normalization
 end
 
 %% Combine all the evidence
-% p = permute( probS .* probMtakeS .* probOtakeM , [1,3,2]) ./ repmat(Z,size(m,1),1);       % p(s) shouldn't appear here...
-p = permute( probMtakeS .* probOtakeM , [1,3,2]) ./ repmat(Z,size(m,1),1);
-logp = log(p);
+% logp = permute(...
+%     log(probS) + log(probMtakeS) + log(probOtakeM) + logprobRtakeM,...
+%     [1,3,2]) - ...
+%     repmat(Z,size(m,1),1);        % p(s) shouldn't appear here...
+
+logp = permute(...
+    log(probMtakeS) + log(probOtakeM) + logprobRtakeM,...
+    [1,3,2]) - ...
+    repmat(Z,size(m,1),1);
+
+p = exp(logp);
 
 
 %% Functions

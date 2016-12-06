@@ -1,4 +1,5 @@
-function [wm, wy, b, lapse, llikelihood, lmodelEvidence] = ObsActBiasedLapse_fitter(x,y,varargin)
+function [wm, wy, b, lapse, llikelihood, lmodelEvidence] = ...
+    ObsActBiasedLapse_fitter(x,y,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
