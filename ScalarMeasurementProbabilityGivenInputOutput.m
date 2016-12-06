@@ -1,4 +1,5 @@
-function p = ScalarMeasurementProbabilityGivenInputOutput(s,o,m,wm,wo,smin,smax,varargin)
+function [logp, p] = ScalarMeasurementProbabilityGivenInputOutput(...
+    s,o,m,wm,wo,smin,smax,varargin)
 %% ScalarMeasurementProbabilityGivenInputOutput
 %
 %   p = ScalarMeasurementProbabilityGivenInputOutput(s,o,m,wm,wp,smin,smax)
@@ -43,9 +44,9 @@ Normalization = Parser.Results.Normalization;
 
 
 % Ensure s and o are the proper dimensions
-if isnan(s) && numel(s) ~= numel(o)
+if any(isnan(s)) && numel(s) ~= numel(o)
     s = nan(size(o));
-elseif isnan(o) && numel(s) ~= numel(o)
+elseif any(isnan(o)) && numel(s) ~= numel(o)
     o = nan(size(s));
 elseif numel(s) ~= numel(o)
     error('Input, s, and output, o, must have equal dimensions!')
@@ -99,6 +100,7 @@ end
 
 %% Combine all the evidence
 p = permute( probS .* probMtakeS .* probOtakeM , [1,3,2]) ./ repmat(Z,size(m,1),1);
+logp = log(p);
 
 
 %% Functions
