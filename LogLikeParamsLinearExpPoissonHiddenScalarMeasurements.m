@@ -27,6 +27,7 @@ addRequired(Parser,'r')                 % M by N (trials by neurons) matrix of n
 % addParameter(Parser,'neuralModel',neuralModel_default)       % Model of activation functions
 addParameter(Parser,'measurementN',2)                        % Number of measurements
 addParameter(Parser,'sMinMax',NaN)                           % Min and max of sample interval
+addParameter(Parser,'poolOn',false)                          % For controlling parallel pool size; defaults to no pool
 
 parse(Parser,params,s,o,r,varargin{:})
 
@@ -37,6 +38,7 @@ r = Parser.Results.r;
 % neuralModel = Parser.Results.neuralModel;
 measurementN = Parser.Results.measurementN;
 sMinMax = Parser.Results.sMinMax;
+poolOn = Parser.Results.poolOn;
 
 % Validate inputs
 s = s(:);
@@ -58,8 +60,9 @@ wo = params(2);
 neuralP = reshape(params(3:end),[N,2]);
 
 %% Integrate out the hidden measurement values and estimate likelihood of model
+
 method_options.dx = 0.01;
-functionHandle = @(m,Y)(integrandFunction(m,Y(:,1),Y(:,2),Y(:,3:end),wm,wo,neuralP,smin,smax));
+functionHandle = @(m,Y)(integrandFunction(m,Y(:,1),Y(:,2),Y(:,3:end),wm,wo,neuralP,smin,smax,poolOn));
 p = ndintegrate(functionHandle,...
     repmat([smin-2*wm*smin smax+3*wm*smax],measurementN,1),...
     'method','quad','options',method_options,'ExtraVariables',[s, o, r]);
@@ -67,6 +70,7 @@ p = ndintegrate(functionHandle,...
 
 logp = sum(log(p));
 p = exp(logp);              % Typically too small for numerical precision
+
 
 %% Functions
 
@@ -81,7 +85,7 @@ end
 function p = PoissonDistribution(k,lambda)
 p = lambda.^repmat(k',[size(lambda,1),1]) .* exp(-lambda) ./ factorial(repmat(k',[size(lambda,1),1]));
 
-function out =  integrandFunction(m,s,o,r,wm,wo,neuralP,smin,smax)
+function out =  integrandFunction(m,s,o,r,wm,wo,neuralP,smin,smax,poolOn)
 % Set up variables
 M = repmat(m,[1, 1, size(s,1)]);
 S = repmat( permute(s,[3,2,1]), [size(M,1) 1 1]  );
@@ -108,12 +112,25 @@ else
 end
 
 % Probability of r given m
-probRtakeM = ones(size(probOtakeM));
-for neuroni = 1:size(r,2)
-%     LAMBDA = LinExp(neuralP(neuroni,:),M);
-    LAMBDA = LinExp(neuralP(neuroni,:),M(:,1,:));
-    ptemp = PoissonDistribution(r(:,neuroni),LAMBDA);
-    probRtakeM = probRtakeM .* permute(ptemp,[1 3 2]);
+if poolOn
+    ptemp = ones(size(probOtakeM));
+    ptemp = repmat(ptemp,[1,1,1,size(r,2)]);
+    parfor neuroni = 1:size(r,2)
+        %     LAMBDA = LinExp(neuralP(neuroni,:),M);
+        LAMBDA = LinExp(neuralP(neuroni,:),M(:,1,:));
+        ptemp(:,:,:,neuroni) = permute(...
+            PoissonDistribution(r(:,neuroni),LAMBDA),...
+            [1 3 2]);
+    end
+    probRtakeM = prod(ptemp,4);
+else
+    probRtakeM = ones(size(probOtakeM));
+    for neuroni = 1:size(r,2)
+        %     LAMBDA = LinExp(neuralP(neuroni,:),M);
+        LAMBDA = LinExp(neuralP(neuroni,:),M(:,1,:));
+        ptemp = PoissonDistribution(r(:,neuroni),LAMBDA);
+        probRtakeM = probRtakeM .* permute(ptemp,[1 3 2]);
+    end
 end
 
 out = permute( probMtakeS .* probOtakeM .* probRtakeM, [1,3,2]);
