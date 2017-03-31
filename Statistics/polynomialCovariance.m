@@ -24,10 +24,11 @@ x = Parser.Results.x;
 nonlinearity = Parser.Results.nonlinearity;
 
 %% Calculate covaraince for each supplied pair
-fpoly = polyval(fparams,x(:,1)+x(:,2));
+fpoly = polyval(fparams,(x(:,1)+x(:,2))/2);
 gpoly = polyval(gparams,x(:,1)-x(:,2));
 
-f = nonlinearity(fpoly);
+% f = nonlinearity(fpoly);
+f = fpoly;
 g = nonlinearity(gpoly);
 
 C = f.*g;
