@@ -7,10 +7,10 @@
 
 % Task
 tss = 600:100:1000;
-N = 3;
+N = 4;
 
 % Network
-tau = 320;
+tau = 240;
 wI = 0.0012;
 uinit = 1.5*ones(size(tss));
 vinit = 1.5*ones(size(tss));
@@ -40,8 +40,8 @@ for i = 1:N
         end
         Eproj = [1 -1] * [us; vs];
         predErr(i-1,:) = (Eproj - mean(Eproj));
-        uic(i,:) = uic(i-1,:) - (Eproj - mean(Eproj))/6;
-        vic(i,:) = vic(i-1,:) - (Eproj - mean(Eproj))/6;
+        uic(i,:) = uic(i-1,:) - (Eproj - mean(Eproj))/3;
+        vic(i,:) = vic(i-1,:) - (Eproj - mean(Eproj))/3;
         gEi(i,:) = gEi(i-1,:) - (Eproj - mean(Eproj))/2000;
     end
     
