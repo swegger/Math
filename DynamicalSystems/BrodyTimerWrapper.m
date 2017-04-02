@@ -3,10 +3,11 @@
 %%
 
 %% Variables
-
 inNoiseLevels = linspace(0.00005,0.0002,10);
 
 %% Run in loop
+parallelPool = parpool(20,'IdleTimeout',24*60);
+
 parfor i = 1:length(inNoiseLevels)
     [tp{i}, u{i}, v{i}, ncs{i}, thresholds{i}] = ...
         TimingWithBrodyNetwork('inNoise',inNoiseLevels(i));
@@ -14,3 +15,6 @@ end
 
 %% Saving
 save /om/user/swegger/analysis/Testing/BrodyWrapperTest
+
+%% Clean up
+delete(parallelPool)
