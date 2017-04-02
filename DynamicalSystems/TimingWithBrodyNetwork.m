@@ -10,17 +10,17 @@ function [tp, u, v, ncs, threshold] = ...
 %% Parse inputs
 Parser = inputParser;
 
-addParameter('tss',600:100:1000)
-addParameter('N',3)
-addParameter('trialN',1000)
-addParameter('t',0:1500)
-addParameter('tau',380)
-addParameter('wI',0.0012)
-addParameter('uinit',1.5)
-addParameter('vinit',1.5)
-addParameter('gE',0.0015)
-addParameter('inNoise',0.0001)
-addParameter('plotflg',false)
+addParameter(Parser,'tss',600:100:1000)
+addParameter(Parser,'N',3)
+addParameter(Parser,'trialN',1000)
+addParameter(Parser,'t',0:1500)
+addParameter(Parser,'tau',380)
+addParameter(Parser,'wI',0.0012)
+addParameter(Parser,'uinit',1.5)
+addParameter(Parser,'vinit',1.5)
+addParameter(Parser,'gE',0.0015)
+addParameter(Parser,'inNoise',0.0001)
+addParameter(Parser,'plotflg',false)
 
 parse(Parser,varargin{:})
 
