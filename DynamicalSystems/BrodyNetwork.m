@@ -26,6 +26,8 @@ addParameter(Parser,'gE',0.0015)
 addParameter(Parser,'wI',0.0012)
 addParameter(Parser,'SigTransition',0)
 addParameter(Parser,'xgrd',xgrd_default)
+addParameter(Parser,'inputNoise',0)
+addParameter(Parser,'trialN',1);
 addParameter(Parser,'plotflg',false)
 
 parse(Parser,uinit,vinit,varargin{:})
@@ -40,31 +42,40 @@ gE = Parser.Results.gE;
 wI = Parser.Results.wI;
 SigTransition = Parser.Results.SigTransition;
 xgrd = Parser.Results.xgrd;
+inputNoise = Parser.Results.inputNoise;
+trialN = Parser.Results.trialN;
 plotflg = Parser.Results.plotflg;
 
+t = t(:);
+
 %% Run simulation
-du = nan(size(t));
-dv = nan(size(t));
-u = nan(size(t));
-v = nan(size(t));
-u(1)= uinit;
-v(1)= vinit;
-du(1) = 0;
-dv(1) = 0;
+du = nan(size(t,1),trialN);
+dv = nan(size(t,1),trialN);
+u = nan(size(t,1),trialN);
+v = nan(size(t,1),trialN);
+u(1,:)= uinit;
+v(1,:)= vinit;
+du(1,:) = 0;
+dv(1,:) = 0;
 
 for ti=2:length(t);
 
   % ODE integration using Euler's method
-  du(ti) = -u(ti-1) + f( -wI*v(ti-1) + lambda*gE ) + SigTransition*randn(1);
-  dv(ti) = -v(ti-1) + f( -wI*u(ti-1) + lambda*(gE + 0.0001) ) + SigTransition*randn(1);
-  u(ti) = u(ti-1)+du(ti)/tau;
-  v(ti) = v(ti-1)+dv(ti)/tau; 
+  I = gE(:)' + inputNoise*randn(1,trialN);
+  du(ti,:) = -u(ti-1,:) + f( -wI*v(ti-1,:) + lambda*I ) +...
+      SigTransition*randn(1,trialN);
+  dv(ti,:) = -v(ti-1,:) + f( -wI*u(ti-1,:) + lambda*(I + 0.0001) ) +...
+      SigTransition*randn(1,trialN);
+  u(ti,:) = u(ti-1,:)+du(ti,:)/tau;
+  v(ti,:) = v(ti-1,:)+dv(ti,:)/tau; 
 
 end
 
 %% Calculate nullclines
-ncs.u = 1000*wI*ioMachensBrody( -xgrd + lambda*gE );
-ncs.v = 1000*wI*ioMachensBrody( -xgrd + lambda*(gE + 0.0001) );
+ncs.u = 1000*wI*ioMachensBrody( -repmat(xgrd,[length(gE),1]) +...
+    repmat(lambda*gE(:),[1 length(xgrd)]) );
+ncs.v = 1000*wI*ioMachensBrody( -repmat(xgrd,[length(gE),1]) +...
+    repmat(lambda*(gE(:) + 0.0001),[1 length(xgrd)]) );
 ncs.x = 1000*xgrd;
 
 %% Plotting
