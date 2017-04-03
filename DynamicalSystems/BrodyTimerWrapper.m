@@ -29,7 +29,8 @@ for i = 1:size(NoiseLevels,1)
 end
 
 %% Saving
-save /om/user/swegger/analysis/Testing/BrodyWrapperTest
+save( ['/om/user/swegger/analysis/Testing/BrodyWrapperTest_' ...
+    datestr(now,'yyyymmdd')], '-v7.3' )
 
 %% Clean up
 delete(parallelPool)
