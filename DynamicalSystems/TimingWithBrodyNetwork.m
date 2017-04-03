@@ -20,6 +20,7 @@ addParameter(Parser,'uinit',1.5)
 addParameter(Parser,'vinit',1.5)
 addParameter(Parser,'gE',0.0015)
 addParameter(Parser,'inNoise',0.0001)
+addParameter(Parser,'transitionNoise',0.0001)
 addParameter(Parser,'plotflg',false)
 
 parse(Parser,varargin{:})
@@ -34,6 +35,7 @@ uinit = Parser.Results.uinit;
 vinit = Parser.Results.vinit;
 gE = Parser.Results.gE;
 inNoise = Parser.Results.inNoise;
+transitionNoise = Parser.Results.transitionNoise;
 plotflg = Parser.Results.plotflg;
 
 if length(uinit) == 1 && length(tss) ~=1
@@ -97,6 +99,7 @@ for i = 1:N
         [u{i,j}, v{i,j}, du{i,j}, dv{i,j}, ncs{i,j}] = BrodyNetwork(...
             squeeze(uic(i,j,:)),squeeze(vic(i,j,:)),'inputNoise',inNoise,...
             'trialN',trialN,'gE',squeeze(gEi(i,j,:)),...
+            'transitionNoise',transitionNoise,...
             'plotflg',false,'t',t,'tau',tau,'wI',wI);
         
     end
@@ -140,6 +143,7 @@ for i = 1:N
         [u{i,j}, v{i,j}, du{i,j}, dv{i,j}, ncs{i,j}] = BrodyNetwork(...
             squeeze(uic(i,j,:)),squeeze(vic(i,j,:)),'inputNoise',inNoise,...
             'trialN',trialN,'gE',squeeze(gEi(i,j,:)),...
+            'transitionNoise',transitionNoise,...
             'plotflg',false,'t',t,'tau',tau,'wI',wI);
         
     end

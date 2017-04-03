@@ -24,7 +24,7 @@ addParameter(Parser,'f',f_default)
 addParameter(Parser,'lambda',2.5625)
 addParameter(Parser,'gE',0.0015)
 addParameter(Parser,'wI',0.0012)
-addParameter(Parser,'SigTransition',0)
+addParameter(Parser,'transitionNoise',0)
 addParameter(Parser,'xgrd',xgrd_default)
 addParameter(Parser,'inputNoise',0)
 addParameter(Parser,'trialN',1);
@@ -40,7 +40,7 @@ f = Parser.Results.f;
 lambda = Parser.Results.lambda;
 gE = Parser.Results.gE;
 wI = Parser.Results.wI;
-SigTransition = Parser.Results.SigTransition;
+transitionNoise = Parser.Results.transitionNoise;
 xgrd = Parser.Results.xgrd;
 inputNoise = Parser.Results.inputNoise;
 trialN = Parser.Results.trialN;
@@ -63,9 +63,9 @@ for ti=2:length(t);
   % ODE integration using Euler's method
   I = gE(:)' + inputNoise*randn(1,trialN);
   du(ti,:) = -u(ti-1,:) + f( -wI*v(ti-1,:) + lambda*I ) +...
-      SigTransition*randn(1,trialN);
+      transitionNoise*randn(1,trialN);
   dv(ti,:) = -v(ti-1,:) + f( -wI*u(ti-1,:) + lambda*(I + 0.0001) ) +...
-      SigTransition*randn(1,trialN);
+      transitionNoise*randn(1,trialN);
   u(ti,:) = u(ti-1,:)+du(ti,:)/tau;
   v(ti,:) = v(ti-1,:)+dv(ti,:)/tau; 
 
