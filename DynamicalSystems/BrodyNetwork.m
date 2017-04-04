@@ -58,7 +58,7 @@ v(1,:)= vinit;
 du(1,:) = 0;
 dv(1,:) = 0;
 
-for ti=2:length(t);
+for ti=2:length(t)
 
   % ODE integration using Euler's method
   I = gE(:)' + inputNoise*randn(1,trialN);
