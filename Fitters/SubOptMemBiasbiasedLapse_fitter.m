@@ -307,11 +307,15 @@ for ii = 1:length(xfit)
         wP_ini = IC(2);
         b_ini = IC(3);
         lapse_ini = IC(4);
+        wM_drift_ini = IC(5);
+        w_int_ini = IC(6);
     else
         wM_ini = wm(ii-1);
         wP_ini = wy(ii-1);
         b_ini = b(ii-1);
         lapse_ini = lapse(ii-1);
+        wM_drift_ini = wm_drift(ii-1);
+        w_int_ini = w_int(ii-1);
     end
     try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
