@@ -13,10 +13,11 @@ function [ta, ta_std, varargout] = ta_expectation3(ts,wm,N,dt,varargin)
 %
 %%
 
-% Defaults
+%% Defaults
 method_opts_default.dx = 0.01;
+estimator_default.override = false;
 
-% Parse inputs
+%% Parse inputs
 p = inputParser;
 addRequired(p,'ts');
 addRequired(p,'wm');
@@ -31,6 +32,7 @@ addParameter(p,'trials',1000);
 addParameter(p,'integrationMethod','quad');
 addParameter(p,'options',NaN);
 addParameter(p,'sigp',0);
+addParameter(p,'estimator',estimator_default);
 
 
 parse(p,ts,wm,N,dt,varargin{:})
@@ -48,6 +50,7 @@ trials = p.Results.trials;
 integrationMethod = p.Results.integrationMethod;
 options = p.Results.options;
 sigp = p.Results.sigp;
+estimator = p.Results.estimator;
 
 if isnan(Support)
     tsmin = min(ts);
@@ -57,7 +60,16 @@ else
     tsmax = Support(2);
 end
 
-% Find the expected value of the estimate
+if ~isfield(estimator,'override')
+    warning('Overriding Type to match estimator.type passed by user!')
+    Type = 'N/A';
+end
+
+if strcmp(Type,'N/A') && ~estimator.override
+    error('User must supply an estimator structure if Type is N/A!')
+end
+
+%% Find the expected value of the estimate
 switch method
     case 'analytical'
         switch Type
@@ -399,6 +411,38 @@ switch method
                 varargout{2} = v;
                 varargout{3} = rmse;
                 
+                
+            case 'N/A'
+                % Iterate for each ts
+                %h = waitbar(0,['Simulating ' num2str(N) ' measurements']);
+                errors = zeros(trials,length(ts));
+                ta = nan(size(ts));
+                ta_std = nan(size(ts));
+                for i = 1:length(ts)
+                    % Generate measuments of each ts
+                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                    tm = ts(i)*ones(trials,N) + noise;
+                    method_opts.type = 'quad';
+                    method_opts.dx = dt;
+                    E = ScalarBayesEstimators(tm,wm,tsmin,tsmax,...
+                        'method',method_opts,'estimator',estimator);
+                    
+                    E = E + wp*E.*randn(size(E)) + sigp*randn(size(E));
+                    
+                    errors(:,i) = E - ts(i);
+                    ta(i) = mean(E);
+                    ta_std(i) = std(E);
+                    
+                    %waitbar(i/length(ts))
+                end
+                
+                % Bias
+                rmse = sqrt(mean(errors(:).^2));
+                bias2 = mean((ta(:)-ts(:)).^2);
+                v = mean(ta_std.^2);
+                varargout{1} = bias2;
+                varargout{2} = v;
+                varargout{3} = rmse;
                 
             otherwise
                 error(['Numerical simulation of model type ' Type ' not yet supported!'])
