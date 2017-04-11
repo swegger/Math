@@ -65,9 +65,9 @@ if ~isfield(estimator,'override')
     Type = 'N/A';
 end
 
-if strcmp(Type,'N/A') && ~estimator.override
-    error('User must supply an estimator structure if Type is N/A!')
-end
+% if strcmp(Type,'N/A') && ~estimator.override
+%     error('User must supply an estimator structure if Type is N/A!')
+% end
 
 %% Find the expected value of the estimate
 switch method
