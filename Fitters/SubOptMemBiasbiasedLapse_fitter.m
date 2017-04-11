@@ -240,7 +240,7 @@ for ii = 1:length(xfit)
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 0:dx:2*xmax;
+            m = 1:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
@@ -299,16 +299,16 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
-    ub = [1 1 Inf 1];
+    lb = [0 0 0 0 -Inf 0];
+    ub = [1 1 1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini w_int_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
         wP_ini = IC(2);
-        b_ini = IC(3);
-        lapse_ini = IC(4);
-        wM_drift_ini = IC(5);
-        w_int_ini = IC(6);
+        wM_drift_ini = IC(3);
+        w_int_ini = IC(4);
+        b_ini = IC(5);
+        lapse_ini = IC(6);
     else
         wM_ini = wm(ii-1);
         wP_ini = wy(ii-1);
@@ -317,12 +317,12 @@ for ii = 1:length(xfit)
         wM_drift_ini = wm_drift(ii-1);
         w_int_ini = w_int(ii-1);
     end
-    try
+  %  try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
-    catch ME
-        save('/om/user/swegger/SubOptMemBiasbiasedLapse_fitterERROR')
-        rethrow(ME)
-    end
+   % catch ME
+    %    save('/om/user/swegger/SubOptMemBiasbiasedLapse_fitterERROR')
+     %   rethrow(ME)
+%     end
     
     wm(ii) = lparams(1);
     wy(ii) = lparams(2);
