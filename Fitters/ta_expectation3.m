@@ -24,7 +24,7 @@ addRequired(p,'wm');
 addRequired(p,'N');
 addRequired(p,'dt');
 addParameter(p,'Type','BLS')
-addParameter(p,'wp',NaN);
+addParameter(p,'wp',0);
 addParameter(p,'Support',NaN)
 addParameter(p,'method','analytical');
 addParameter(p,'method_options',method_opts_default);
