@@ -1,5 +1,5 @@
-function [wm, wy, wm_drift, w_int, b, lapse, llikelihood, lmodelEvidence] = ...
-    SubOptMemBiasbiasedLapse_fitter(x,y,varargin)
+function [llikelihood, lmodelEvidence] = NestedModelbiasedLapse_Validator(...
+    x,y,wm,wy,wm_drift,w_int,b,lapse,alpha,varargin)
 %% FITBAYESOBSERVERMODEL
 %
 %   Fits the Baysian Observer Model (Jazayeri and Shadlen, 2010) with a bias 
@@ -18,7 +18,6 @@ ICflg = 0;
 FitterFlg = 0;
 Nflg = 0;
 LapseSupportflg = 0;
-CrossValidationflg = 0;
 ModelEvidenceflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
@@ -34,9 +33,6 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'LapseSupport')
             LapseSupportflg = 1;
             LapseSupportnum = i;
-        elseif strcmp(varargin{i},'CrossValidation')
-            CrossValidationflg = 1;
-            CrossValidationnum = i;
         elseif strcmp(varargin{i},'ModelEvidence')
             ModelEvidenceflg = 1;
             ModelEvidencenum = i;
@@ -106,12 +102,6 @@ else
     end
 end
 
-if CrossValidationflg
-    CrossValidation = varargin{CrossValidationnum+1};
-else
-    CrossValidation.Type = 'None';
-end
-
 if ModelEvidenceflg
     ModelEvidence = varargin{ModelEvidencenum+1};
     if ~isfield(ModelEvidence,'OpenMind')
@@ -125,122 +115,18 @@ if nargin < 3
     error('Not enought input arguments!')
 end
 
-%% Set up cross validation
-switch CrossValidation.Type
-    case {'None','none'}
-        % No cross validation, fit all the data
-        xfit{1} = x;
-        yfit{1} = y;
-        xval{1} = x;
-        yval{1} = y;
-        
-    case 'FitFraction'
-        % Fit a fraction of the data and validate on the remaining
-        if ~isfield(CrossValidation,'Iter')
-            CrossValidation.Iter = 1;
-        end
-        for ii = 1:CrossValidation.Iter
-            if iscell(x)
-                for i = 1:length(x)
-                    [xfit{ii}{i} indx] = datasample(x{i},ceil(CrossValidation.FitPercent*length(x{i})),'Replace',false);
-                    yfit{ii}{i} = y{i}(indx);
-                    valvec = zeros(length(x{i}),1);
-                    valvec(indx) = 1;
-                    valvec = ~valvec;
-                    xval{ii} = x{i}(valvec);
-                    yval{ii} = y{i}(valvec);
-                end
-                
-            else
-                [xfit{ii} indx] = datasample(x,ceil(CrossValidation.FitPercent*length(x)),'Replace',false);
-                yfit{ii} = y(indx);
-                valvec = zeros(length(x),1);
-                valvec(indx) = 1;
-                valvec = ~valvec;
-                xval{ii} = x(valvec);
-                yval{ii} = y(valvec);
-            end
-        end
-        
-    case 'LNOCV'
-        % Leave N out crossvalidation: fit on all but N, validate on N,
-        % repeat until all the data is processed
-        if iscell(x)
-            for i = 1:length(x)
-                for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                    if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                        indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                        fitvec = true(1,length(x{i}));
-                        fitvec(indx) = false; 
-                        valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
-                    else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
-                    end
-                    xfitsz{ii}(i,:) = size(xfit{ii}{i});
-                end
-            end
-            iikeep = true(size(1:ceil(length(x{i})/CrossValidation.N)));
-            for ii = 1:ceil(length(x{i})/CrossValidation.N)
-                xfitu = unique(xfitsz{ii},'rows');
-                if any(xfitu(:) == 0)
-                    iikeep(ii) = false;
-                end
-            end
-            xfit = xfit(iikeep);
-            yfit = yfit(iikeep);
-            xval = xval(iikeep);
-            yval = yval(iikeep);
-            
-        else
-            for ii = 1:ceil(length(x)/CrossValidation.N)
-                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
-                    indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
-                    fitvec = true(1,length(x));
-                    fitvec(indx) = false;
-                    valvec = ~fitvec;
-                    xfit{ii} = x( fitvec );
-                    yfit{ii} = y( fitvec );
-                    xval{ii} = x( valvec );
-                    yval{ii} = y( valvec );
-                else
-                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N );
-                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N );
-                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end );
-                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end );
-                end
-            end
-        end   
-        
-    otherwise
-        error(['Cross validation type ' CrossValidation.Type ' not recognized!'])
-end
-
-% Fit according to minimizer
-OPTIONS = optimset('Display','iter');
-
-for ii = 1:length(xfit)
-    disp(['Fit # ' num2str(ii) ' of ' num2str(length(xfit))])
+%% Test model predictions on data
+for ii = 1:length(x)
     switch FitType
         case 'integral'
-            % Use integral
-            minimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
-            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
+            error('Not yet supported!')
             
         case 'trapz'
-            % Use trapz
-            minimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
-            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
+            error('Not yet supported!')
             
         case 'quad'
             % Use Simpson's quadrature
-            m = 1:dx:2*xmax;
+            m = 0:dx:2*xmax;
             l = length(m);
             if iscell(N)
                 n= max([N{:}]);
@@ -260,85 +146,17 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),p(:,7),N,x,y,xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
             
         case 'quad_batch'
-            % Use Simpson's quadrature on batches of data
-            m = 0:dx:2*xmax;
-            l = length(m);
-            if iscell(N)
-                n = max([N{:}]);
-                Mtemp = cell(1,n);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^n,n);
-                for j = 1:n
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            else
-                n = N;
-                Mtemp = cell(1,N);
-                [Mtemp{:}] = ndgrid(m);
-                M = zeros(l^N,N);
-                for j = 1:N
-                    M(:,j) = [Mtemp{j}(:)];
-                end
-            end
-            
-            minimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
-            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            error('Not yet supported!')
             
         case 'quad_nested'
-            % Use Simpson's quadrature on batches of data, performing
-            % integrations in nested loops
-            m = 0:dx:2*xmax;
-            l = length(m);
-            
-            minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
+            error('Not yet supported!')
     end
-    
-    %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 0 0 -Inf 0];
-    ub = [1 1 1 1 Inf 1];
-    minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini w_int_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
-    if ii == 1
-        wM_ini = IC(1);
-        wP_ini = IC(2);
-        wM_drift_ini = IC(3);
-        w_int_ini = IC(4);
-        b_ini = IC(5);
-        lapse_ini = IC(6);
-    else
-        wM_ini = wm(ii-1);
-        wP_ini = wy(ii-1);
-        b_ini = b(ii-1);
-        lapse_ini = lapse(ii-1);
-        wM_drift_ini = wm_drift(ii-1);
-        w_int_ini = w_int(ii-1);
-    end
-  %  try
-        [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
-   % catch ME
-    %    save('/om/user/swegger/SubOptMemBiasbiasedLapse_fitterERROR')
-     %   rethrow(ME)
-%     end
-    
-    wm(ii) = lparams(1);
-    wy(ii) = lparams(2);
-    wm_drift(ii) = lparams(3);
-    w_int(ii) = lparams(4);
-    b(ii) = lparams(5);
-    lapse(ii) = lparams(6);
-    
-    switch CrossValidation.Type
-        case 'None'
-            llikelihood(ii) = llike;
+    lparams = [wm, wy, wm_drift, w_int, b, lapse, alpha];
+    llikelihood(ii) = validant(lparams);
             
-        otherwise
-            llikelihood(ii) = validant(lparams);
-            
-    end
     
     switch ModelEvidence.method
         case 'Integration'
@@ -366,29 +184,11 @@ for ii = 1:length(xfit)
     end
 
 end
-    
+
 
 %% Function to be minimized
-function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
-%% LOGLIKELIHOOD
-%
-%   Calculates the loglikelihood of measurement scalar
-%   varaibility (wm) and produciton scalar variability (wy), given the
-%   observed sample (x) and production times (y)
 
-error('SubOptMemBias model not yet supported for FitType = "integral"')
-
-
-function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y)
-%% LOGLIKELIHOODTRAPZ
-%
-%   Calculates the loglikelihood of measurement scalar
-%   varaibility (wm) and produciton scalar variability (wy), given the
-%   observed sample (x) and production times (y)
-
-error('SubOptMemBias model not yet supported for FitType = "trapz"')
-
-function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
+function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,alpha,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
 %% LOGLIKELIHOODQUAD
 %
 %   Calculates the log likelihood of scalar
@@ -398,9 +198,7 @@ function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,N,x,y,xmin,xmax,d
 %
 %%
 
-if size(N,2) > 2
-    error('Support of models with larger than 2 measurements not yet supported when measurement noise is not equal')
-end
+
 
 % Determine if different number of Ns are used
 if iscell(N)
@@ -435,9 +233,10 @@ if iscell(N)
         % BLS model
         method_opts.type = 'quad';
         method_opts.dx = dx;
-        estimator.type = 'SubOptMemBias';
+        estimator.type = 'NestedModel';
         estimator.wm_drift = wm_drift;
         estimator.w_int = w_int;
+        estimator.alpha = alpha;
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
             fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
@@ -447,7 +246,6 @@ if iscell(N)
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
-        WM_DRIFT = repmat(permute(wm_drift(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
@@ -510,9 +308,10 @@ else
     % BLS model
     method_opts.type = 'quad';
     method_opts.dx = dx;
-    estimator.type = 'SubOptMemBias';
+    estimator.type = 'Nested';
     estimator.wm_drift = wm_drift;
     estimator.w_int = w_int;
+    estimator.alpha = alpha;
     fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
     for ii = 1:length(wm)
         fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
@@ -560,22 +359,6 @@ else
 end
 
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
-%% LOGLIKELIHOODQUADbatch
-%
-%   Calculates the log likelihood of scalar
-%   varaibility (wm) and produciton scalar variability (wy), given the
-%   observed sample (x) and production times (y) using Simpson's quadrature
-%   method
-%
-%%
-
-error('Lapse model not yet supported for FitType = "quad_batch"')
-
-function logL = logLikelihoodQUADnested(wm,wy,b,N,x,y,xmin,xmax,dx,m,batchsize)
-
-
-error('Lapse model not yet supported for FitType = "quad_nested"')
 
 %% ModelEvidence functions
     function out = modelEvidenceFunction(ll,lfun)
