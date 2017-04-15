@@ -1102,6 +1102,178 @@ switch estimator.type
             case 'MonteCarlo_batch'
                 % TODO
         end
+        
+    case {'BLS_wm1wm2'}
+        switch method.type
+            case 'integral'
+                % TODO
+                
+            case 'trapz'
+                % TODO
+                
+            case 'quad'
+                switch prior.type
+                    case 'uniform'
+                        N = size(m,2);
+                        wm_drift = estimator.wm_drift;
+                        
+                        if N == 1
+                            % Create x-vector
+                            dx = method.dx;
+                            x = xmin:dx:xmax;
+                            
+                            % Create Simpson's nodes
+                            l = length(x);
+                            h = (xmax - xmin)/l;
+                            w = ones(1,l);
+                            w(2:2:l-1) = 4;
+                            w(3:2:l-1) = 2;
+                            w = w*h/3;
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            
+                            % Generate estimate
+                            w = reshape(w,[1 1 1 l]);
+                            w = repmat(w,[1 1 size(m,1) 1]);
+                            likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                            %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                            e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                            e = permute(e,[3 2 1]);
+                            
+                        elseif N == 2                         
+                            
+                            % Create x-vector
+                            dx = method.dx;
+                            x = xmin:dx:xmax;
+                            
+                            % Create Simpson'€™s nodes
+                            l = length(x);
+                            h = (xmax - xmin)/l;
+                            w = ones(1,l);
+                            w(2:2:l-1) = 4;
+                            w(3:2:l-1) = 2;
+                            w = w*h/3;
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            
+                            % Generate estimate
+                            w = reshape(w,[1 1 1 l]);
+                            w = repmat(w,[1 1 size(m,1) 1]);
+                            l1 = ( (1./sqrt(2*pi)/wm_drift/X(1,:,:,:)) .* ...
+                                exp( -(X(1,:,:,:)-M(1,:,:,:)).^2 ./...
+                                (2*wm_drift.^2.*X(1,:,:,:).^2) ) );
+                            l2 = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)) .* ...
+                                exp( -(X(1,:,:,:)-M(2,:,:,:)).^2 ./...
+                                (2*wm.^2.*X(1,:,:,:).^2) ) );
+                            likelihood = l1.*l2;
+                            e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                            e = permute(e,[3 2 1]);
+                        else
+                            error('N > 2 not supported for supOptMemBias model!')
+                        end
+                        
+                    case 'Gaussian'
+                        N = size(m,2);
+                        wm_drift = estimator.wm_drift;
+                        
+                        % Parameterize prior
+                        mu = prior.mu;
+                        sig = prior.sig;
+                        
+                        if N == 1
+                            % Create x-vector
+                            dx = method.dx;
+                            x = xmin:dx:xmax;
+                            
+                            % Create Simpson's nodes
+                            l = length(x);
+                            h = (xmax - xmin)/l;
+                            w = ones(1,l);
+                            w(2:2:l-1) = 4;
+                            w(3:2:l-1) = 2;
+                            w = w*h/3;
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            P = 1/sqrt(2*pi*sig^2) * exp( -(X(1,:,:,:)-mu).^2/(2*sig^2));
+                            
+                            % Generate estimate
+                            w = reshape(w,[1 1 1 l]);
+                            w = repmat(w,[1 1 size(m,1) 1]);
+                            likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                            
+                            e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
+                            e = permute(e,[3 2 1]);
+                            
+                        elseif N == 2                         
+                            
+                            % Create x-vector
+                            dx = method.dx;
+                            x = xmin:dx:xmax;
+                            
+                            % Create Simpson'€™s nodes
+                            l = length(x);
+                            h = (xmax - xmin)/l;
+                            w = ones(1,l);
+                            w(2:2:l-1) = 4;
+                            w(3:2:l-1) = 2;
+                            w = w*h/3;
+                            
+                            % Reshape measurements for processing
+                            M = permute(m,[2 3 1]);
+                            M = repmat(M,[1,1,1,l]);
+                            x = reshape(x,[1 1 1 l]);
+                            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                            P = 1/sqrt(2*pi*sig^2) * exp( -(X(1,:,:,:)-mu).^2/(2*sig^2));
+                            
+                            % Generate estimate
+                            w = reshape(w,[1 1 1 l]);
+                            w = repmat(w,[1 1 size(m,1) 1]);
+                            l1 = ( (1./sqrt(2*pi)/wm_drift/X(1,:,:,:)) .* ...
+                                exp( -(X(1,:,:,:)-M(1,:,:,:)).^2 ./...
+                                (2*wm_drift.^2.*X(1,:,:,:).^2) ) );
+                            l2 = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)) .* ...
+                                exp( -(X(1,:,:,:)-M(1,:,:,:)).^2 ./...
+                                (2*wm.^2.*X(1,:,:,:).^2) ) );
+                            likelihood = l1.*l2;
+                            e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
+                            e = permute(e,[3 2 1]);
+                        else
+                            error('N > 2 not supported for supOptMemBias model!')
+                        end
+                        
+                    otherwise
+                        error(['Prior ' prior.type ' not recognized!'])
+                end
+            case 'MonteCarlo'
+                % TODO
+                
+            case 'MonteCarlo_batch'
+                % TODO
+        end
 end
 
 %% Functions
