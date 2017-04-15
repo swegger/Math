@@ -246,6 +246,7 @@ if iscell(N)
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+        WM_DRIFT = repmat(permute(wm_drift(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
@@ -322,6 +323,7 @@ else
     M = repmat(M,[1 1 length(wm)]);
     fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
     WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+    WM_DRIFT = repmat(permute(wm_drift(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     
