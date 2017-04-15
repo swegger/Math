@@ -960,8 +960,27 @@ switch estimator.type
                     w = repmat(w,[1 1 size(m,1) 1]);
                     likelihood = ( (1./sqrt(2*pi)/w_int/X(1,:,:,:)) .*...
                         exp( -(sum((X-M).^2,1))./(2*w_int.^2.*X(1,:,:,:).^2) ) );
-                    e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                    
+                    % For some very small values of w_int, the weighted sum
+                    % is zero to numerical precision; replacing with
+                    % realmin in the denominator fixes this, but returns
+                    % bad estimates for extremely unlikely measurement
+                    % combinations (e.g. m2 >> m1)
+                    denominator = sum(w.*likelihood,4);
+                    if any(denominator(:) == 0)
+                        warning(['For some very small values of w_int, the weighted sum' ...
+                            'is zero to numerical precision; replacing with '...
+                            'realmin in the denominator fixes this, but returns '...
+                            'bad estimates for extremely unlikely measurement '...
+                            'combinations (e.g. m2 >> m1)'])
+                        denominator(denominator == 0) = realmin;
+                    end
+                    e = sum(w.*X(1,:,:,:).*likelihood,4)./denominator;
                     e = permute(e,[3 2 1]);
+                    
+                    if any( isnan(e(:)) )
+                        error('Returns nan...')
+                    end
                 else
                     error('N > 2 not supported for supOptMemBias model!')
                 end
@@ -1018,7 +1037,22 @@ switch estimator.type
                     w = repmat(w,[1 1 size(m,1) 1]);
                     likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)) .*...
                         exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
-                    e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                    
+                    % For some very small values of w_int, the weighted sum
+                    % is zero to numerical precision; replacing with
+                    % realmin in the denominator fixes this, but returns
+                    % bad estimates for extremely unlikely measurement
+                    % combinations (e.g. m2 >> m1)
+                    denominator = sum(w.*likelihood,4);
+                    if any(denominator(:) == 0)
+                        warning(['For some very small values of w_int, the weighted sum' ...
+                            'is zero to numerical precision; replacing with '...
+                            'realmin in the denominator fixes this, but returns '...
+                            'bad estimates for extremely unlikely measurement '...
+                            'combinations (e.g. m2 >> m1)'])
+                        denominator(denominator == 0) = realmin;
+                    end
+                    e = sum(w.*X(1,:,:,:).*likelihood,4)./denominator;
                     e = permute(e,[3 2 1]);
                     
                 elseif N == 2

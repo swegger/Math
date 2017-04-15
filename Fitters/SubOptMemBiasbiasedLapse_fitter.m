@@ -398,7 +398,9 @@ function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,N,x,y,xmin,xmax,d
 %
 %%
 
-
+if size(N,2) > 2
+    error('Support of models with larger than 2 measurements not yet supported when measurement noise is not equal')
+end
 
 % Determine if different number of Ns are used
 if iscell(N)
@@ -445,11 +447,32 @@ if iscell(N)
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
         fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
         WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+        WM_DRIFT = repmat(permute(wm_drift(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
-        p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
+        
+        if n == 1
+            p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)) .* ...
+                exp( -squeeze(...
+                (repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])...
+                -repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2) ./...
+                (2.*WM.^2.*X.^2) );
+        elseif n == 2
+            p_m1_take_x = (1./sqrt(2.*pi.*WM_DRIFT.^2.*X.^2)) .* ...
+                exp( -squeeze(...
+                (repmat(permute(M(1:l^n,1,:),[1 4 2 3]),[1 size(X,2) 1 1])...
+                -repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2) ./...
+                (2.*WM_DRIFT.^2.*X.^2) );
+            p_m2_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)) .*...
+                exp( -squeeze(...
+                (repmat(permute(M(1:l^n,2,:),[1 4 2 3]),[1 size(X,2) 1 1])...
+                -repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2) ./...
+                (2.*WM.^2.*X.^2) );
+            p_m_take_x = p_m1_take_x.*p_m2_take_x;
+        end
+        
         integrand = p_y_take_fBLS.*p_m_take_x;
         
         for ii = 1:length(wm)
@@ -516,6 +539,7 @@ else
     
     
 end
+
 
 function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
 %% LOGLIKELIHOODQUADbatch
