@@ -89,7 +89,7 @@ prior = inputs.Results.prior;       %% TODO generalize to aribitrary prior
 
 % Compute the estimate
 switch estimator.type
-    case 'BLS'
+    case {'BLS','BLSbiasedLapse'}
         switch method.type
             case 'integral'
                 N = size(m,2);
