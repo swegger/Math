@@ -17,7 +17,7 @@ function [ta, ta_std, varargout] = ta_expectation3(ts,wm,N,dt,varargin)
 method_opts_default.dx = 0.01;
 estimator_default.override = false;
 
-noiseModel_default.Cov = 'NaN';
+noiseModel_default.Cov = NaN;
 
 %% Parse inputs
 p = inputParser;
@@ -35,7 +35,7 @@ addParameter(p,'integrationMethod','quad');
 addParameter(p,'options',NaN);
 addParameter(p,'sigp',0);
 addParameter(p,'estimator',estimator_default);
-addParameter(p,'noiseModel',noiseModel.default);
+addParameter(p,'noiseModel',noiseModel_default);
 
 
 parse(p,ts,wm,N,dt,varargin{:})
