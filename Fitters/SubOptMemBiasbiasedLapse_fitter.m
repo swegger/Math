@@ -485,9 +485,9 @@ if iscell(N)
     end
     logL = permute(sum(logLi,1),[2 1]);
 
-    if any(isnan(logL(:)))
-        error('Returns NaN')
-    end
+%     if any(isnan(logL(:)))
+%         error('Returns NaN')
+%     end
     
 else    
     
