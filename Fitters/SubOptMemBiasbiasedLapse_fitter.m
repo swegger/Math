@@ -452,7 +452,7 @@ if iscell(N)
         B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
         
         p_y_take_fBLS = (1./sqrt(2.*pi.*WY.^2.*fBLS.^2)) .* exp( -(Y - (fBLS+B)).^2./(2.*WY.^2.*fBLS.^2) );
-        p_y_take_fBLS( isnan(p_y_take_fBLS) ) = realmin;
+        p_y_take_fBLS( isnan(p_y_take_fBLS) ) = 0;
         
         if n == 1
             p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)) .* ...
