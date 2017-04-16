@@ -17,6 +17,8 @@ function [ta, ta_std, varargout] = ta_expectation3(ts,wm,N,dt,varargin)
 method_opts_default.dx = 0.01;
 estimator_default.override = false;
 
+noiseModel_default.Cov = 'NaN';
+
 %% Parse inputs
 p = inputParser;
 addRequired(p,'ts');
@@ -33,6 +35,7 @@ addParameter(p,'integrationMethod','quad');
 addParameter(p,'options',NaN);
 addParameter(p,'sigp',0);
 addParameter(p,'estimator',estimator_default);
+addParameter(p,'noiseModel',noiseModel.default);
 
 
 parse(p,ts,wm,N,dt,varargin{:})
@@ -51,6 +54,7 @@ integrationMethod = p.Results.integrationMethod;
 options = p.Results.options;
 sigp = p.Results.sigp;
 estimator = p.Results.estimator;
+noiseModel = p.Results.noiseModel;
 
 if isnan(Support)
     tsmin = min(ts);
@@ -63,6 +67,11 @@ end
 if ~isfield(estimator,'override')
     warning('Overriding Type to match estimator.type passed by user!')
     Type = 'N/A';
+end
+
+if ~strcmp(Type,'N/A') && ~isnan(noiseModel.Cov)
+    error(['Support for alternative generative noise models only supported'...
+        ' when estimator type is set by "estiamtor" input']);
 end
 
 % if strcmp(Type,'N/A') && ~estimator.override
@@ -420,8 +429,13 @@ switch method
                 ta_std = nan(size(ts));
                 for i = 1:length(ts)
                     % Generate measuments of each ts
-                    noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
-                    tm = ts(i)*ones(trials,N) + noise;
+                    if ~isnan(noiseModel.Cov)
+                        noise = ts(i)*noiseModel.Cov*randN(N,trials);
+                        tm = ts(i)*ones(trial,N) + noise';
+                    else
+                        noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                        tm = ts(i)*ones(trials,N) + noise;
+                    end
                     method_opts.type = 'quad';
                     method_opts.dx = dt;
                     E = ScalarBayesEstimators(tm,wm,tsmin,tsmax,...
