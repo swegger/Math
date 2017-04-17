@@ -1,7 +1,7 @@
-function p = probM(M,wm,smin,smax,varargin)
+function p = probM(m,wm,smin,smax,varargin)
 %% probM
 %
-%   p = probM(M,smin,smax)
+%   p = probM(m,smin,smax)
 %
 %   Finds the probability of measurements by margnializing out the samples
 %   that could have happened.
@@ -18,7 +18,7 @@ method_opts_default.dx = 10;
 %% Parse inputs
 Parser = inputParser;
 
-addRequired(Parser,'M')
+addRequired(Parser,'m')
 addRequired(Parser,'wm')
 addRequired(Parser,'smin')
 addRequired(Parser,'smax')
@@ -26,9 +26,9 @@ addParameter(Parser,'estimator',estimator_default)
 addParameter(Parser,'method_opts',method_opts_default)
 addParameter(Parser,'wm1',NaN)
 
-parse(Parser,M,wm,smin,smax,varargin{:})
+parse(Parser,m,wm,smin,smax,varargin{:})
 
-M = Parser.Results.M;
+m = Parser.Results.m;
 wm = Parser.Results.wm;
 smin = Parser.Results.smin;
 smax = Parser.Results.smax;
@@ -37,7 +37,7 @@ method_opts = Parser.Results.method_opts;
 wm1 = Parser.Results.wm1;
 
 
-N = size(M,2);
+N = size(m,2);
 
 %% 
 
@@ -58,15 +58,15 @@ switch method_opts.type
             w = w*h/3;
             
             % Reshape measurements for processing
-            m = permute(M,[2 3 1]);
-            m = repmat(m,[1,1,1,l]);
+            M = permute(m,[2 3 1]);
+            M = repmat(M,[1,1,1,l]);
             x = reshape(x,[1 1 1 l]);
-            X = repmat(x,[size(m,1) 1 size(m,3) 1]);
+            X = repmat(x,[size(M,1) 1 size(M,3) 1]);
             
             % Generate estimate
             w = reshape(w,[1 1 1 l]);
-            w = repmat(w,[1 1 size(M,1) 1]);
-            likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-m).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+            w = repmat(w,[1 1 size(m,1) 1]);
+            likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
             p = sum(w.*likelihood,4);
             p = permute(p,[3 2 1]);
             
@@ -86,15 +86,15 @@ switch method_opts.type
                 w = w*h/3;
                 
                 % Reshape measurements for processing
-                m = permute(M,[2 3 1]);
-                m = repmat(m,[1,1,1,l]);
+                M = permute(m,[2 3 1]);
+                M = repmat(M,[1,1,1,l]);
                 x = reshape(x,[1 1 1 l]);
-                X = repmat(x,[size(m,1) 1 size(m,3) 1]);
+                X = repmat(x,[size(M,1) 1 size(M,3) 1]);
                 
                 % Generate estimate
                 w = reshape(w,[1 1 1 l]);
-                w = repmat(w,[1 1 size(M,1) 1]);
-                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-m).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                w = repmat(w,[1 1 size(m,1) 1]);
+                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 p = sum(w.*likelihood,4);
                 p = permute(p,[3 2 1]);
                 
@@ -113,19 +113,19 @@ switch method_opts.type
                 w = w*h/3;
                 
                 % Reshape measurements for processing
-                m = permute(M,[2 3 1]);
-                m = repmat(m,[1,1,1,l]);
+                M = permute(m,[2 3 1]);
+                M = repmat(M,[1,1,1,l]);
                 x = reshape(x,[1 1 1 l]);
-                X = repmat(x,[size(m,1) 1 size(m,3) 1]);
+                X = repmat(x,[size(M,1) 1 size(M,3) 1]);
                 
                 % Generate estimate
                 w = reshape(w,[1 1 1 l]);
-                w = repmat(w,[1 1 size(M,1) 1]);
+                w = repmat(w,[1 1 size(m,1) 1]);
                 l1 = ( (1./sqrt(2*pi)/wm1/X(1,:,:,:)) .* ...
-                    exp( -(X(1,:,:,:)-m(1,:,:,:)).^2 ./...
+                    exp( -(X(1,:,:,:)-M(1,:,:,:)).^2 ./...
                     (2*wm1.^2.*X(1,:,:,:).^2) ) );
                 l2 = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)) .* ...
-                    exp( -(X(1,:,:,:)-m(2,:,:,:)).^2 ./...
+                    exp( -(X(1,:,:,:)-M(2,:,:,:)).^2 ./...
                     (2*wm.^2.*X(1,:,:,:).^2) ) );
                 likelihood = l1.*l2;
                 p = sum(w.*likelihood,4);
