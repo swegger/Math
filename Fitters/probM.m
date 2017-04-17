@@ -116,11 +116,11 @@ switch method_opts.type
                 m = permute(M,[2 3 1]);
                 m = repmat(m,[1,1,1,l]);
                 x = reshape(x,[1 1 1 l]);
-                X = repmat(x,[size(M,1) 1 size(m,3) 1]);
+                X = repmat(x,[size(m,1) 1 size(m,3) 1]);
                 
                 % Generate estimate
                 w = reshape(w,[1 1 1 l]);
-                w = repmat(w,[1 1 size(m,1) 1]);
+                w = repmat(w,[1 1 size(M,1) 1]);
                 l1 = ( (1./sqrt(2*pi)/wm1/X(1,:,:,:)) .* ...
                     exp( -(X(1,:,:,:)-m(1,:,:,:)).^2 ./...
                     (2*wm1.^2.*X(1,:,:,:).^2) ) );
