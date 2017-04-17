@@ -977,10 +977,6 @@ switch estimator.type
 %                     end
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./denominator;
                     e = permute(e,[3 2 1]);
-%                     
-%                     if any( isnan(e(:)) )
-%                         error('Returns nan...')
-%                     end
                 else
                     error('N > 2 not supported for supOptMemBias model!')
                 end
