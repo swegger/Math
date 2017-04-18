@@ -1137,7 +1137,7 @@ switch estimator.type
                         
                         % Create Simpson's nodes
                         l = length(x);
-                        h = (smax - smin)/l;
+                        h = (xmax - xmin)/l;
                         w = ones(1,l);
                         w(2:2:l-1) = 4;
                         w(3:2:l-1) = 2;
