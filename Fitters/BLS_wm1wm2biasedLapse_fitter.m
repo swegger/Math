@@ -308,7 +308,7 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 0 -Inf 0];
+    lb = [0.01 0 0.01 -Inf 0];
     ub = [1 1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
