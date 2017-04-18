@@ -61,12 +61,12 @@ function [e, likelihood] = ScalarBayesEstimators(m,wm,xmin,xmax,varargin)
 %
 %%
 
-% Defaults
+%% Defaults
 method_opts.type = 'integral';
 estimator_opts.type = 'BLS';
 prior_opts.type = 'uniform';
 
-% Parse inputs
+%% Parse inputs
 inputs = inputParser;
 addRequired(inputs,'m');
 addRequired(inputs,'wm');
@@ -87,7 +87,17 @@ estimator = inputs.Results.estimator;
 prior = inputs.Results.prior;       %% TODO generalize to aribitrary prior
 
 
-% Compute the estimate
+if isfield(estimator,'wy')
+    wy = estimator.wy;
+else
+    wy = 0;
+end
+
+if ~isfield(estimator,'ObsAct')
+    estimator.ObsAct = 0;
+end
+
+%% Compute the estimate
 switch estimator.type
     case {'BLS','BLSbiasedLapse'}
         switch method.type
@@ -95,7 +105,7 @@ switch estimator.type
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'trapz'
@@ -114,7 +124,7 @@ switch estimator.type
                 
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
-                e = trapz(x.*likelihood,4)./trapz(likelihood,4);
+                e = trapz(x.*likelihood,4)./trapz(likelihood,4)/(1+wy.^2)^estimator.ObsAct;
                 e = permute(e,[2 1]);
                 
             case 'quad'
@@ -147,7 +157,7 @@ switch estimator.type
                         likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                         %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                         e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                        e = permute(e,[3 2 1]);
+                        e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                         
                     case 'Gaussian'
                         % Parameterize prior
@@ -182,7 +192,7 @@ switch estimator.type
                         likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                         %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                         e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
-                        e = permute(e,[3 2 1]);
+                        e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                        
                     otherwise
                         error(['Prior ' prior.type ' not recognized!'])
@@ -198,7 +208,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo_batch'
                 % Set up integration variables
@@ -211,11 +221,11 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
         end
         
     case {'ObsAct','ObsActLapse'}
-        wy = estimator.wy;
+%         wy = estimator.wy;
         switch method.type
             case 'integral'
                 N = size(m,2);
@@ -304,7 +314,7 @@ switch estimator.type
             case 'fminsearch'
                 for i = 1:size(m,1)
                     post = @(x)(posteriorMAP(x,m(i,:),wm,xmin,xmax));
-                    e(i) = fminsearch(post,(xmax-xmin)/2+xmin);
+                    e(i) = fminsearch(post,(xmax-xmin)/2+xmin)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'analytical'
@@ -319,13 +329,14 @@ switch estimator.type
 %                 end
                 e(e < xmin) = xmin;
                 e(e > xmax) = xmax;
+                e = e/(1+wy.^2)^estimator.ObsAct;
                 
             case 'integral'
                 error('Not yet supported!')
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'trapz'
@@ -346,7 +357,7 @@ switch estimator.type
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1]);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'quad'
                 error('Not yet supported!')
@@ -377,7 +388,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo'
                 error('Not yet supported!')
@@ -390,7 +401,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo_batch'
                 error('Not yet supported!')
@@ -404,7 +415,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
         end
         
     case 'MLE'
@@ -412,19 +423,19 @@ switch estimator.type
             case 'fminsearch'
                 for i = 1:size(m,1)
                     post = @(x)(posteriorMLE(x,m(i,:),wm,xmin,xmax));
-                    e(i) = fminsearch(post,(xmax-xmin)/2+xmin);
+                    e(i) = fminsearch(post,(xmax-xmin)/2+xmin)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'analytical'
                 N = size(m,2);
-                e = mean(m,2) .* (-1 + sqrt(1 + 4*wm^2 .* mean(m.^2,2)./mean(m,2).^2)) / (2*wm^2);
+                e = mean(m,2) .* (-1 + sqrt(1 + 4*wm^2 .* mean(m.^2,2)./mean(m,2).^2)) / (2*wm^2)/(1+wy.^2)^estimator.ObsAct;
                 
             case 'integral'
                 error('Not yet supported!')
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'trapz'
@@ -445,7 +456,7 @@ switch estimator.type
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1]);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'quad'
                 error('Not yet supported!')
@@ -476,7 +487,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo'
                 error('Not yet supported!')
@@ -489,7 +500,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo_batch'
                 error('Not yet supported!')
@@ -503,7 +514,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo_batch','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
         end
         
     case 'aveEstimates'
@@ -515,7 +526,7 @@ switch estimator.type
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'trapz'
@@ -531,12 +542,12 @@ switch estimator.type
                 % Reshape measurements for processing
                 M = permute(m,[2 3 1]);
                 M = reshape(m,1,1,1,length(x));
-                x = repmat(x,size(m,1),1,size(m,3));
+                x = repmat(x,size(m,1),1,size(m,3))/(1+wy.^2)^estimator.ObsAct;
                 
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1]);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'quad'
                 for i = 1:size(m,2)
@@ -568,7 +579,7 @@ switch estimator.type
                     %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
                     e = permute(e,[3 2 1]);
-                    E(:,i) = e;
+                    E(:,i) = e/(1+wy.^2)^estimator.ObsAct;
                 end
                 e = sum(repmat(weights,size(m,1),1).*E,2);
                 
@@ -587,7 +598,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
        end
        
     case 'weightedMean'
@@ -599,7 +610,7 @@ switch estimator.type
                 N = size(m,2);
                 fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
                 for i = 1:size(m,1)
-                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N);
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
                 end
                 
             case 'trapz'
@@ -620,7 +631,7 @@ switch estimator.type
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1]);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'quad'
                 % Number of measurements
@@ -651,7 +662,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 
            case 'MonteCarlo'
                error('Not yet supported!')
@@ -668,7 +679,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
        end
 
     case 'weightedMeanOptimal'
@@ -701,7 +712,7 @@ switch estimator.type
                 % Generate estimate
                 likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
                 e = trapz(x.*likelihood,4)./trapz(likelihood,4);
-                e = permute(e,[2 1]);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'quad'
                 % Number of measurements
@@ -732,7 +743,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi*sum(weights.^2))/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2).*sum(weights.^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 
            case 'MonteCarlo'
                error('Not yet supported!')
@@ -749,7 +760,7 @@ switch estimator.type
                 numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
                 
-                e = numerator./denominator;
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
        end
        
     case 'sequential'
@@ -820,7 +831,7 @@ switch estimator.type
                 
                 % Determine estimate
 %                e = permute(sum(repmat(w',[1 size(m,1)]).*X.*alpha)./Z,[2 1]);
-                e = permute(sum(repmat(w',[1 size(m,1)]).*X.*alpha./Z),[2 1]);
+                e = permute(sum(repmat(w',[1 size(m,1)]).*X.*alpha./Z),[2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'trapz'
                 % TODO
@@ -872,7 +883,7 @@ switch estimator.type
                 likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
 %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                 e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                e = permute(e,[3 2 1]);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 
             case 'MonteCarlo'
                 % TODO
@@ -923,7 +934,7 @@ switch estimator.type
                     likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)) .*...
                         exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                    e = permute(e,[3 2 1]);
+                    e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                     
                 elseif N == 2
                     a1 = wm_drift^2/(wm_drift.^2+wm.^2);
@@ -976,7 +987,7 @@ switch estimator.type
 %                         denominator(denominator == 0) = realmin;
 %                     end
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./denominator;
-                    e = permute(e,[3 2 1]);
+                    e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 else
                     error('N > 2 not supported for supOptMemBias model!')
                 end
@@ -1049,7 +1060,7 @@ switch estimator.type
                         denominator(denominator == 0) = realmin;
                     end
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./denominator;
-                    e = permute(e,[3 2 1]);
+                    e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                     
                 elseif N == 2
                     a1 = wm^2/(wm_drift.^2+wm.^2);
@@ -1087,7 +1098,7 @@ switch estimator.type
                     likelihood = ( (1./sqrt(2*pi)/w_int/X(1,:,:,:)) .*...
                         exp( -(sum((X-M).^2,1))./(2*w_int.^2.*X(1,:,:,:).^2) ) );
                     e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                    e = permute(e,[3 2 1]);
+                    e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                 else
                     error('N > 2 not supported for supOptMemBias model!')
                 end
@@ -1144,7 +1155,7 @@ switch estimator.type
                             likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                             %                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                             e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                            e = permute(e,[3 2 1]);
+                            e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                             
                         elseif N == 2                         
                             
@@ -1177,7 +1188,7 @@ switch estimator.type
                                 (2*wm.^2.*X(1,:,:,:).^2) ) );
                             likelihood = l1.*l2;
                             e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
-                            e = permute(e,[3 2 1]);
+                            e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                         else
                             error('N > 2 not supported for supOptMemBias model!')
                         end
@@ -1222,7 +1233,7 @@ switch estimator.type
                             likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
                             
                             e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
-                            e = permute(e,[3 2 1]);
+                            e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                             
                         elseif N == 2                         
                             
@@ -1256,7 +1267,7 @@ switch estimator.type
                                 (2*wm.^2.*X(1,:,:,:).^2) ) );
                             likelihood = l1.*l2;
                             e = sum(w.*X(1,:,:,:).*likelihood.*P,4)./sum(w.*likelihood.*P,4);
-                            e = permute(e,[3 2 1]);
+                            e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
                         else
                             error('N > 2 not supported for supOptMemBias model!')
                         end
