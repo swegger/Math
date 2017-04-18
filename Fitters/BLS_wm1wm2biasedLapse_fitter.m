@@ -43,6 +43,9 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'ObsAct')
             ObsActflg = 1;
             ObsActnum = i;
+        elseif strcmp(varargin{'Bounds'})
+            Boundsflg = 1;
+            Boundsnum = i;
         end
     end
 end
@@ -128,6 +131,14 @@ if ObsActflg
     ObsAct = varargin{ObsActnum+1};
 else
     ObsAct = 0;
+end
+
+if Boundsflg
+    ub = varargin{Boundsnum+1}(1,:);
+    lb = varargin{Boundsnum+1}(2,:);
+else
+    lb = [0.01 0 0.01 -Inf 0];
+    ub = [1    1 1     Inf 1];
 end
 
 if nargin < 3 
@@ -308,8 +319,6 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0.01 0 0.01 -Inf 0];
-    ub = [1 1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);

@@ -39,6 +39,12 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'ModelEvidence')
             ModelEvidenceflg = 1;
             ModelEvidencenum = i;
+        elseif strcmp(varargin{i},'ObsAct')
+            ObsActflg = 1;
+            ObsActnum = i;
+        elseif strcmp(varargin{'Bounds'})
+            Boundsflg = 1;
+            Boundsnum = i;
         end
     end
 end
@@ -118,6 +124,20 @@ if ModelEvidenceflg
     end
 else
     ModelEvidence.method = 'none';
+end
+
+if ObsActflg
+    ObsAct = varargin{ObsActnum+1};
+else
+    ObsAct = 0;
+end
+
+if Boundsflg
+    ub = varargin{Boundsnum+1}(1,:);
+    lb = varargin{Boundsnum+1}(2,:);
+else
+    lb = [0 0 -Inf 0];
+    ub = [1 1  Inf 1];
 end
 
 if nargin < 3 
@@ -229,13 +249,13 @@ for ii = 1:length(xfit)
     switch FitType
         case 'integral'
             % Use integral
-            BLSminimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
-            BLSvalidant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
+            BLSminimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,ObsAct);
+            BLSvalidant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,ObsAct);
             
         case 'trapz'
             % Use trapz
-            BLSminimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
-            BLSvalidant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
+            BLSminimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii},ObsAct);
+            BLSvalidant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii},ObsAct);
             
         case 'quad'
             % Use Simpson's quadrature
@@ -259,8 +279,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            BLSminimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            BLSvalidant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            BLSminimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),ObsAct);
+            BLSvalidant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),ObsAct);
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
@@ -284,8 +304,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            BLSminimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize,ObsAct);
+            BLSvalidant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize,ObsAct);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
@@ -293,13 +313,11 @@ for ii = 1:length(xfit)
             m = 0:dx:2*xmax;
             l = length(m);
             
-            BLSminimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            BLSvalidant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
+            BLSminimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize,ObsAct);
+            BLSvalidant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize,ObsAct);
     end
     
     %minimizer = 'fminsearch(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 -Inf 0];
-    ub = [1 1 Inf 1];
     minimizer = 'fmincon(BLSminimizant, [wM_ini wP_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
@@ -362,7 +380,7 @@ end
     
 
 %% Function to be minimized
-function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
+function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax,ObsAct)
 %% LOGLIKELIHOOD
 %
 %   Calculates the loglikelihood of measurement scalar
@@ -397,7 +415,7 @@ end
 
 logL = -sum(log(Likelihoods));
 
-function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y)
+function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y,ObsAct)
 %% LOGLIKELIHOODTRAPZ
 %
 %   Calculates the loglikelihood of measurement scalar
@@ -427,7 +445,7 @@ end
 
 logL = -sum(log(Likelihoods));
 
-function logL = logLikelihoodQUAD(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
+function logL = logLikelihoodQUAD(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,ObsAct)
 %% LOGLIKELIHOODQUAD
 %
 %   Calculates the log likelihood of scalar
@@ -484,9 +502,12 @@ if iscell(N)
         % BLS model
         method_opts.type = 'quad';
         method_opts.dx = dx;
+        estimator.type = 'BLS';
+        estimator.ObsAct = ObsAct;
+        
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
-            fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts);
+            fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
         X = repmat(x{i}',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(y{i}',[size(fBLS,1), 1, length(wm)]);
@@ -638,9 +659,12 @@ else
     % BLS model
     method_opts.type = 'quad';
     method_opts.dx = dx;
+    estimator.type = 'BLS';
+    estimator.ObsAct = ObsAct;
+    
     fBLS = nan(size(M(1:l^N,1:N),1),length(wm));
     for ii = 1:length(wm)
-        fBLS(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N),wm(ii),xmin,xmax,'method',method_opts);
+        fBLS(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
     end
     X = repmat(x',[size(fBLS,1), 1, length(wm)]);
     Y = repmat(y',[size(fBLS,1), 1, length(wm)]);
@@ -664,7 +688,7 @@ else
     
 end
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize,ObsAct)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
@@ -783,9 +807,12 @@ for i = 1:length(N)
         % BLS model
         method_opts.type = 'quad';
         method_opts.dx = dx;
+        estimator.type = 'BLS';
+        estimator.ObsAct = ObsAct;
+        
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
-            fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts);
+            fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
         X = repmat(xtemp',[size(fBLS,1), 1, length(wm)]);
         Y = repmat(ytemp',[size(fBLS,1), 1, length(wm)]);
@@ -851,7 +878,10 @@ else
         
         method_opts.type = 'quad';
         method_opts.dx = dx;
-        fBLS = ScalarBayesEstimators(M(1:l^N,1:N),wm,xmin,xmax,'method',method_opts);
+        estimator.type = 'BLS';
+        estimator.ObsAct = ObsAct;
+        
+        fBLS = ScalarBayesEstimators(M(1:l^N,1:N),wm,xmin,xmax,'method',method_opts,'estimator',estimator);
         X = repmat(x',numel(fBLS),1);
         Y = repmat(y',numel(fBLS),1);
         fBLS = repmat(fBLS,1,size(X,2));
@@ -869,7 +899,7 @@ else
     
 end
 
-function logL = logLikelihoodQUADnested(wm,wy,b,N,x,y,xmin,xmax,dx,m,batchsize)
+function logL = logLikelihoodQUADnested(wm,wy,b,N,x,y,xmin,xmax,dx,m,batchsize,ObsAct)
 
 
 error('Lapse model not yet supported for FitType = "quad_nested"')
@@ -894,6 +924,8 @@ if iscell(N)
             
             method_opts.type = 'quad';
             method_opts.dx = dx;
+            estimator.type = 'BLS';
+            estimator.ObsAct = ObsAct;
             
             % Used nested loop and serial computation
             logLik(i,k) = 0;
@@ -907,7 +939,7 @@ if iscell(N)
                 integrand = zeros(l,batchsize);
                 for ii = 1:l
                     mvec = m(ii);
-                    fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                    fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                     p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                     p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                     integrand(ii,:) = p_y_take_fBLS.*p_m_take_x;
@@ -931,7 +963,7 @@ if iscell(N)
                 for ii = 1:l
                     for jj = 1:l
                         mvec = [m(ii) m(jj)];
-                        fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                        fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                         p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                         p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                         ind = l*(jj-1) + ii;
@@ -959,7 +991,7 @@ if iscell(N)
                     for jj = 1:l
                         for kk = 1:l
                             mvec = [m(ii) m(jj) m(kk)];
-                            fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                            fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                             p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                             p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                             ind = l^2*(kk-1) + l*(jj-1) + ii;
@@ -990,7 +1022,7 @@ if iscell(N)
                         for kk = 1:l
                             for ll = 1:l
                                 mvec = [m(ii) m(jj) m(kk) m(ll)];
-                                fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                                fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                                 p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                                 p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                                 ind = l^3*(ll-1) + l^2*(kk-1) + l*(jj-1) + ii;
@@ -1024,6 +1056,8 @@ else
         
         method_opts.type = 'quad';
         method_opts.dx = dx;
+        estimator.type = 'BLS';
+        estimator.ObsAct = ObsAct;
         
         % Used nested loop and serial computation
         logLk(k) = 0;
@@ -1037,7 +1071,7 @@ else
             integrand = zeros(l,batchsize);
             for ii = 1:l
                 mvec = m(ii);
-                fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                 p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                 p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                 integrand(ii,:) = p_y_take_fBLS.*p_m_take_x;
@@ -1061,7 +1095,7 @@ else
             for ii = 1:l
                 for jj = 1:l
                     mvec = [m(ii) m(jj)];
-                    fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                    fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                     p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                     p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                     ind = l*(jj-1) + ii;
@@ -1089,7 +1123,7 @@ else
                 for jj = 1:l
                     for kk = 1:l
                         mvec = [m(ii) m(jj) m(kk)];
-                        fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                        fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                         p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                         p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                         ind = l^2*(kk-1) + l*(jj-1) + ii;
@@ -1120,7 +1154,7 @@ else
                     for kk = 1:l
                         for ll = 1:l
                             mvec = [m(ii) m(jj) m(kk) m(ll)];
-                            fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts);
+                            fBLS = ScalarBayesEstimators(mvec,wm,xmin,xmax,'method',method_opts,'estimator',estimator);
                             p_y_take_fBLS = (1./sqrt(2.*pi.*wy.^2.*fBLS.^2)) .* exp( -(ytemp - (fBLS+b)).^2./(2.*wy.^2.*fBLS.^2) );
                             p_m_take_x = (1./sqrt(2.*pi.*wm.^2.*xtemp.^2)).^n .* exp( -sum((repmat(mvec,length(xtemp),1)-repmat(xtemp(:),1,n)).^2,2)./(2.*wm.^2.*xtemp.^2) );
                             ind = l^3*(ll-1) + l^2*(kk-1) + l*(jj-1) + ii;

@@ -40,6 +40,12 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'ModelEvidence')
             ModelEvidenceflg = 1;
             ModelEvidencenum = i;
+        elseif strcmp(varargin{i},'ObsAct')
+            ObsActflg = 1;
+            ObsActnum = i;
+        elseif strcmp(varargin{'Bounds'})
+            Boundsflg = 1;
+            Boundsnum = i;
         end
     end
 end
@@ -119,6 +125,20 @@ if ModelEvidenceflg
     end
 else
     ModelEvidence.method = 'none';
+end
+
+if ObsActflg
+    ObsAct = varargin{ObsActnum+1};
+else
+    ObsAct = 0;
+end
+
+if Boundsflg
+    ub = varargin{Boundsnum+1}(1,:);
+    lb = varargin{Boundsnum+1}(2,:);
+else
+    lb = [0.01 0 0.01 0 -Inf 0];
+    ub = [1    1 1    1  Inf 1];
 end
 
 if nargin < 3 
@@ -230,13 +250,13 @@ for ii = 1:length(xfit)
     switch FitType
         case 'integral'
             % Use integral
-            minimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax);
-            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax);
+            minimizant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xfit{ii},yfit{ii},xmin,xmax,ObsAct);
+            validant = @(p)logLikelihood(p(:,1),p(:,2),p(:,3),N,xval{ii},yval{ii},xmin,xmax,ObsAct);
             
         case 'trapz'
             % Use trapz
-            minimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii});
-            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii});
+            minimizant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xfit{ii},yfit{ii},ObsAct);
+            validant = @(p)logLikelihoodTRAPZ(p(:,1),p(:,2),p(:,3),N,m,xval{ii},yval{ii},ObsAct);
             
         case 'quad'
             % Use Simpson's quadrature
@@ -260,8 +280,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
-            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2));
+            minimizant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),ObsAct);
+            validant = @(p)logLikelihoodQUAD(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),ObsAct);
             
         case 'quad_batch'
             % Use Simpson's quadrature on batches of data
@@ -285,8 +305,8 @@ for ii = 1:length(xfit)
                 end
             end
             
-            minimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
-            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize);
+            minimizant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xfit{ii},yfit{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize,ObsAct);
+            validant = @(p)logLikelihoodQUADbatch(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),p(:,6),N,xval{ii},yval{ii},xmin,xmax,dx,M,m,LapseSupport(1),LapseSupport(2),batchsize,ObsAct);
             
         case 'quad_nested'
             % Use Simpson's quadrature on batches of data, performing
@@ -294,13 +314,11 @@ for ii = 1:length(xfit)
             m = 0:dx:2*xmax;
             l = length(m);
             
-            minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize);
-            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize);
+            minimizant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xfit{ii},yfit{ii},xmin,xmax,dx,m,batchsize,ObsAct);
+            validant = @(p)logLikelihoodQUADnested(p(:,1),p(:,2),p(:,3),p(:,4),p(:,5),N,xval{ii},yval{ii},xmin,xmax,dx,m,batchsize,ObsAct);
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    lb = [0 0 0 0 -Inf 0];
-    ub = [1 1 1 1 Inf 1];
     minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini w_int_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
@@ -369,7 +387,7 @@ end
     
 
 %% Function to be minimized
-function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
+function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax,ObsAct)
 %% LOGLIKELIHOOD
 %
 %   Calculates the loglikelihood of measurement scalar
@@ -379,7 +397,7 @@ function logL = logLikelihood(wm,wy,b,N,x,y,xmin,xmax)
 error('SubOptMemBias model not yet supported for FitType = "integral"')
 
 
-function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y)
+function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y,ObsAct)
 %% LOGLIKELIHOODTRAPZ
 %
 %   Calculates the loglikelihood of measurement scalar
@@ -388,7 +406,7 @@ function logL = logLikelihoodTRAPZ(wm,wy,b,N,m,x,y)
 
 error('SubOptMemBias model not yet supported for FitType = "trapz"')
 
-function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax)
+function logL = logLikelihoodQUAD(wm,wy,wm_drift,w_int,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,ObsAct)
 %% LOGLIKELIHOODQUAD
 %
 %   Calculates the log likelihood of scalar
@@ -438,6 +456,8 @@ if iscell(N)
         estimator.type = 'SubOptMemBias';
         estimator.wm_drift = wm_drift;
         estimator.w_int = w_int;
+        estimator.ObsAct = ObsAct;
+        
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
             fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
@@ -519,6 +539,8 @@ else
     estimator.type = 'SubOptMemBias';
     estimator.wm_drift = wm_drift;
     estimator.w_int = w_int;
+    estimator.ObsAct = ObsAct;
+    
     fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
     for ii = 1:length(wm)
         fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
@@ -566,7 +588,7 @@ else
 end
 
 
-function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize)
+function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,batchsize,ObsAct)
 %% LOGLIKELIHOODQUADbatch
 %
 %   Calculates the log likelihood of scalar
@@ -578,7 +600,7 @@ function logL = logLikelihoodQUADbatch(wm,wy,b,lapse,N,x,y,xmin,xmax,dx,M,m,pmin
 
 error('Lapse model not yet supported for FitType = "quad_batch"')
 
-function logL = logLikelihoodQUADnested(wm,wy,b,N,x,y,xmin,xmax,dx,m,batchsize)
+function logL = logLikelihoodQUADnested(wm,wy,b,N,x,y,xmin,xmax,dx,m,batchsize,ObsAct)
 
 
 error('Lapse model not yet supported for FitType = "quad_nested"')
