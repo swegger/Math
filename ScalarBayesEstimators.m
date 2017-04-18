@@ -1132,7 +1132,7 @@ switch estimator.type
                         end
                         
                         % Create x-vector
-                        dx = method_opts.dx;
+                        dx = method.dx;
                         x = smin:dx:smax;
                         
                         % Create Simpson's nodes
