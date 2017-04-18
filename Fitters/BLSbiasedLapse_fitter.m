@@ -42,7 +42,7 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'ObsAct')
             ObsActflg = 1;
             ObsActnum = i;
-        elseif strcmp(varargin{'Bounds'})
+        elseif strcmp(varargin{i},'Bounds')
             Boundsflg = 1;
             Boundsnum = i;
         end
