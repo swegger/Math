@@ -42,7 +42,7 @@ for i = 1:length(varargin)
             ModelEvidencenum = i;
         elseif strcmp(varargin{i},'ObsAct')
             ObsActflg = 1;
-            ObsACtnum = i;
+            ObsActnum = i;
         end
     end
 end
