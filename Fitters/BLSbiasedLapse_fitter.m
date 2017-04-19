@@ -19,6 +19,8 @@ Nflg = 0;
 LapseSupportflg = 0;
 CrossValidationflg = 0;
 ModelEvidenceflg = 0;
+ObsActflg = 0;
+Boundsflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
         if strcmp(varargin{i},'InitCond')
