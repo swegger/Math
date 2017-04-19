@@ -459,6 +459,7 @@ if iscell(N)
         estimator.wm_drift = wm_drift;
         estimator.w_int = w_int;
         estimator.ObsAct = ObsAct;
+        estimator.wy = wy;
         
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
@@ -542,6 +543,7 @@ else
     estimator.wm_drift = wm_drift;
     estimator.w_int = w_int;
     estimator.ObsAct = ObsAct;
+    estimator.wy = wy;
     
     fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
     for ii = 1:length(wm)

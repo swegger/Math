@@ -506,6 +506,7 @@ if iscell(N)
         method_opts.dx = dx;
         estimator.type = 'BLS';
         estimator.ObsAct = ObsAct;
+        estimator.wy = wy;
         
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
@@ -663,6 +664,7 @@ else
     method_opts.dx = dx;
     estimator.type = 'BLS';
     estimator.ObsAct = ObsAct;
+    estimator.wy = wy;
     
     fBLS = nan(size(M(1:l^N,1:N),1),length(wm));
     for ii = 1:length(wm)

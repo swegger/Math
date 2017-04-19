@@ -455,6 +455,8 @@ if iscell(N)
         estimator.type = 'BLS_wm1wm2';
         estimator.wm_drift = wm_drift;
         estimator.ObsAct = ObsAct;
+        estimator.wy = wy;
+        
         fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
             fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
@@ -536,6 +538,8 @@ else
     estimator.type = 'BLS_wm1wm2';
     estimator.wm_drift = wm_drift;
     estimator.ObsAct = ObsAct;
+    estimator.wy = wy;
+        
     fBLS = nan(size(M(1:l^n,1:n),1),length(wm));
     for ii = 1:length(wm)
         fBLS(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),...
