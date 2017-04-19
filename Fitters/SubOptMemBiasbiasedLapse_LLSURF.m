@@ -1,4 +1,5 @@
-function LLSURF = SubOptMemBiasbiasedLapse_LLSURF(Q,N,x,y,xmin,xmax,dx,pmin,pmax)
+function LLSURF = SubOptMemBiasbiasedLapse_LLSURF(Q,N,x,y,xmin,xmax,...
+    dx,pmin,pmax)
 %%
 %%
 
@@ -10,7 +11,7 @@ if iscell(N)
     [Mtemp{:}] = ndgrid(m);
     M = zeros(l^n,n);
     for j = 1:n
-        M(:,j) = [Mtemp{j}(:)];
+        M(:,j) = Mtemp{j}(:);
     end
 else
     n = N;
@@ -169,6 +170,7 @@ else
     M = repmat(M,[1 1 length(wm)]);
     fBLS = repmat(permute(fBLS,[1 3 2]),[1,size(X,2), 1]);
     WM = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+    WM_DRIFT = repmat(permute(wm(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     WY = repmat(permute(wy(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
     
@@ -210,7 +212,7 @@ end
             
             % Cycle through parameter combinations
             parfor qi = 1:size(Q,1)
-                disp(['Combination ' num2str(qi) ' of ' num2str (size(Q,1)])
+                disp(['Combination ' num2str(qi) ' of ' num2str(size(Q,1))])
                 wm = Q(qi,1);
                 wy = Q(qi,2);
                 b = Q(qi,3);
