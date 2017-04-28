@@ -22,6 +22,7 @@ CrossValidationflg = 0;
 ModelEvidenceflg = 0;
 ObsActflg = 0;
 Boundsflg = 0;
+InequalityBoundflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
         if strcmp(varargin{i},'InitCond')
@@ -48,6 +49,9 @@ for i = 1:length(varargin)
         elseif strcmp(varargin{i},'Bounds')
             Boundsflg = 1;
             Boundsnum = i;
+        elseif strcmp(varargin{i},'InequalityBound')
+            InequalityBoundflg = 1;
+            InequalityBoundnum = i;
         end
     end
 end
@@ -141,6 +145,20 @@ if Boundsflg
 else
     lb = [0.01 0 0.01 -Inf 0];
     ub = [1    1 1     Inf 1];
+end
+
+if InequalityBoundflg
+    inequalityVar = varargin{InequalityBoundnum+1};
+    if isstruct(inequalityVar)
+        A = varargin{InequalityBoundnum+1}.A;
+        C = varargin{InequalityBoundnum+1}.C;
+    elseif islogical(inequalityVar) && inequalityVar
+        A = [1 0 -1 0 0];       % if logical and true, assume wm - wm_drift < 0
+        C = 0;
+    end
+else
+    A = [];
+    C = [];
 end
 
 if nargin < 3 
@@ -321,7 +339,7 @@ for ii = 1:length(xfit)
     end
     
     %minimizer = 'fminsearch(minimizant, [wM_ini wP_ini b_ini lapse_ini], OPTIONS);';
-    minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini b_ini lapse_ini], [], [], [], [], lb, ub, [], OPTIONS);';
+    minimizer = 'fmincon(minimizant, [wM_ini wP_ini wM_drift_ini b_ini lapse_ini], A, C, [], [], lb, ub, [], OPTIONS);';
     if ii == 1
         wM_ini = IC(1);
         wP_ini = IC(2);
