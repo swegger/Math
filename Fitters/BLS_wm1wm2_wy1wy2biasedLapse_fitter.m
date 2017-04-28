@@ -55,7 +55,7 @@ end
 if ICflg
     IC = varargin{ICnum+1};
 else
-    IC = [0.1 0.06 0.1 0.1/sqrt(2) 0 0.05];
+    IC = [0.1 0.06 0.06 0.1 0 0.05];
 end
 
 if FitterFlg
@@ -139,8 +139,8 @@ if Boundsflg
     ub = varargin{Boundsnum+1}(1,:);
     lb = varargin{Boundsnum+1}(2,:);
 else
-    lb = [0.01 0 0.01 -Inf 0];
-    ub = [1    1 1     Inf 1];
+    lb = [0.01 0 0 0.01 -Inf 0];
+    ub = [1    1 1 1     Inf 1];
 end
 
 if nargin < 3 
