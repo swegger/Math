@@ -134,11 +134,26 @@ elseif size(tm,2) == 2
 %     TPmod = TP(:,:,1:end/2);
 %     fBLSmod = fBLS(:,:,1:end/2);
 %     p_tp_take_fBLS = (1./sqrt(2*pi*wp^2*fBLSmod.^2)).*exp(-(TPmod-fBLSmod).^2./(2*wp^2*fBLSmod.^2));
+%     p_tp_take_fBLS = (1./sqrt(2*pi*wp^2*fBLS.^2)).*exp(-(TP-fBLS).^2./(2*wp^2*fBLS.^2));
+%     TS1 = TS(:,1,1:2:end);
+%     TS2 = TS(:,2,2:2:end);
+%     p_tm_take_ts = (1./sqrt(2*pi*wm^2*TS1.^2)).*exp(-(repmat(tm(:,1),1,1,size(TS1,3))-TS1).^2./(2*wm^2*TS1.^2)) .* (1./sqrt(2*pi*wm^2*TS2.^2)).*exp(-(repmat(tm(:,2),1,1,size(TS2,3))-TS2).^2./(2*wm^2*TS2.^2)); %(1./(2*pi*wm^2*TS1.*TS2)).*exp(-(repmat(tm(:,1),1,1,size(TS1,3))-TS1).^2./(2*wm^2*TS1.^2) - (repmat(tm(:,2),1,1,size(TS2,3))-TS2).^2./(2*wm^2*TS2.^2));
+%     p_tm_take_ts = (1./sqrt(2*pi*wm^2*TS(:,1).^2)).*exp(-(tm(:,1)-TS(:,1)).^2./(2*wm^2*TS(:,1).^2)) .* (1./sqrt(2*pi*wm^2*TS(:,2).^2)).*exp(-(tm(:,2)-TS(:,2)).^2./(2*wm^2*TS(:,2).^2));
+    wm2 = wm;
+    if isfield(estimator,'wm_drift')
+        wm1 = estimator.wm_drift;
+    else
+        wm1 = wm;
+    end
+%     TPmod = TP(:,:,1:end/2);
+%     fBLSmod = fBLS(:,:,1:end/2);
+%     p_tp_take_fBLS = (1./sqrt(2*pi*wp^2*fBLSmod.^2)).*exp(-(TPmod-fBLSmod).^2./(2*wp^2*fBLSmod.^2));
     p_tp_take_fBLS = (1./sqrt(2*pi*wp^2*fBLS.^2)).*exp(-(TP-fBLS).^2./(2*wp^2*fBLS.^2));
 %     TS1 = TS(:,1,1:2:end);
 %     TS2 = TS(:,2,2:2:end);
 %     p_tm_take_ts = (1./sqrt(2*pi*wm^2*TS1.^2)).*exp(-(repmat(tm(:,1),1,1,size(TS1,3))-TS1).^2./(2*wm^2*TS1.^2)) .* (1./sqrt(2*pi*wm^2*TS2.^2)).*exp(-(repmat(tm(:,2),1,1,size(TS2,3))-TS2).^2./(2*wm^2*TS2.^2)); %(1./(2*pi*wm^2*TS1.*TS2)).*exp(-(repmat(tm(:,1),1,1,size(TS1,3))-TS1).^2./(2*wm^2*TS1.^2) - (repmat(tm(:,2),1,1,size(TS2,3))-TS2).^2./(2*wm^2*TS2.^2));
-    p_tm_take_ts = (1./sqrt(2*pi*wm^2*TS(:,1).^2)).*exp(-(tm(:,1)-TS(:,1)).^2./(2*wm^2*TS(:,1).^2)) .* (1./sqrt(2*pi*wm^2*TS(:,2).^2)).*exp(-(tm(:,2)-TS(:,2)).^2./(2*wm^2*TS(:,2).^2));
+    p_tm_take_ts = (1./sqrt(2*pi*wm1^2*TS(:,1).^2)).*exp(-(tm(:,1)-TS(:,1)).^2./(2*wm1^2*TS(:,1).^2)) .* ...
+        (1./sqrt(2*pi*wm2^2*TS(:,2).^2)).*exp(-(tm(:,2)-TS(:,2)).^2./(2*wm2^2*TS(:,2).^2));
 end
 
 out = permute(p_tp_take_fBLS.*repmat(p_tm_take_ts,1,1,size(TP,3)),[1 3 2]);
