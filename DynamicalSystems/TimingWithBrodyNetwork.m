@@ -48,29 +48,7 @@ if length(gE) == 1 && length(tss) ~=1
     gE = gE*ones(size(tss));
 end
 
-% % Task
-% tss = 600:100:1000;
-% N = 3;
-% trialN = 100;
-% 
-% % Network
-% t = 0:1500;
-% tau = 380;
-% wI = 0.0012;
-% uinit = 1.5*ones(size(tss));
-% vinit = 1.5*ones(size(tss));
-% % uinit = fliplr(linspace(1.5,2.5,length(tss)));
-% % vinit = fliplr(linspace(1.5,2.5,length(tss)));
-% % uinit = linspace(1,2,length(tss));
-% % vinit = linspace(1,2,length(tss));
-% 
-% gE = 0.0015*ones(size(tss));
-% % gE = linspace(0.00125,0.00175,length(tss));
-% 
-% inNoise = 0.0002;
-% 
-% % Plotting
-% plotflg = true;
+% Plotting
 tsColors = projectColorMaps('ts','samples',1:length(tss));
 
 %% Iterate model for each tss, no noise
@@ -97,9 +75,9 @@ for i = 1:N
         
         % Trying different intitial conditions
         [u{i,j}, v{i,j}, du{i,j}, dv{i,j}, ncs{i,j}] = BrodyNetwork(...
-            squeeze(uic(i,j,:)),squeeze(vic(i,j,:)),'inputNoise',inNoise,...
+            squeeze(uic(i,j,:)),squeeze(vic(i,j,:)),'inputNoise',0,...
             'trialN',trialN,'gE',squeeze(gEi(i,j,:)),...
-            'transitionNoise',transitionNoise,...
+            'transitionNoise',0,...
             'plotflg',false,'t',t,'tau',tau,'wI',wI);
         
     end
@@ -120,7 +98,7 @@ for i = 1:N
     
 end
 
-clear uic vic gEi
+clear uic vic gEi outvec
 
 %% Run with input noise
 for i = 1:N
@@ -131,9 +109,10 @@ for i = 1:N
         gEi(i,:,:) = repmat(gE,[1 1 trialN]);
     else
         Eproj = errs(i-1,:,:);
-        predErr(i-1,:) = mean(Eproj,3);
-        uic(i,:,:) = repmat(uinit,[1 1 trialN]) - Eproj;
-        vic(i,:,:) = repmat(vinit,[1 1 trialN]) - Eproj;
+%         uic(i,:,:) = repmat(uinit,[1 1 trialN]) - Eproj;
+%         vic(i,:,:) = repmat(vinit,[1 1 trialN]) - Eproj;
+        uic(i,:,:) = uic(i-1,:,:) - Eproj/i;
+        vic(i,:,:) = vic(i-1,:,:) - Eproj/i;
         gEi(i,:,:) = gEi(i-1,:,:) - Eproj/(i*1000);
     end
     
@@ -175,13 +154,7 @@ end
 
 Eproj = squeeze(errs(i,:,:));
 predErr(N,:) = mean(Eproj,2);
-% 
-% for j = 1:length(tss)
-%     us(j) = mean(u{end,j}(end,:));
-%     vs(j) = mean(v{end,j}(end,:));
-% end
-% Eproj = [1 -1] * [us; vs];
-% predErr(N,:) = (Eproj - mean(Eproj));
+predErr = squeeze(mean(errs,3));
 
 %% Evaluate dynamics on a grid
 % us = linspace(0,4,20);
@@ -205,19 +178,22 @@ if plotflg
     for i = 1:N
         subplot(1,N,i)
         for j = 1:length(tss)
-            samps = randsample(trialN,20);
-            plot(ncs{i,length(tss)-j+1}.x,ncs{i,length(tss)-j+1}.v(samps,:),...
+            samps = randsample(trialN,1);
+            plot(ncs{i,length(tss)-j+1}.x(ncs{i,length(tss)-j+1}.x > 0),ncs{i,length(tss)-j+1}.v(samps,(ncs{i,length(tss)-j+1}.x > 0)),...
                 'Color',tsColors(length(tss)-j+1,:) + 0.5*(ones(1,3)-tsColors(length(tss)-j+1,:)))
             hold on
-            plot(ncs{i,length(tss)-j+1}.u(samps,:),ncs{i,length(tss)-j+1}.x,...
+            plot(ncs{i,length(tss)-j+1}.u(samps,(ncs{i,length(tss)-j+1}.x > 0)),ncs{i,length(tss)-j+1}.x(ncs{i,length(tss)-j+1}.x > 0),...
                 'Color',tsColors(length(tss)-j+1,:) + 0.5*(ones(1,3)-tsColors(length(tss)-j+1,:)))
+        end
+        for j = 1:length(tss)
             plot(1000*wI*u{i,length(tss)-j+1}(t <= tss(length(tss)-j+1),samps),...
                 1000*wI*v{i,length(tss)-j+1}(t <= tss(length(tss)-j+1),samps),'.-',...
                 'Color',tsColors(length(tss)-j+1,:))
+            hold on
         end
         recurr = threshold(i)*ones(1,2);
         ins = vertcat(inputDim{i,:});
-        inp = [min(ins(:)) max(ins(:))];
+        inp = [min(ins(:))-0.5 max(ins(:))+0.5];
         Rback = R';%[cos(-pi/4) -sin(-pi/4); sin(-pi/4) cos(-pi/4)];
         outs = Rback*[recurr; inp];
         plot(outs(1,:),outs(2,:),'k--')
@@ -225,7 +201,8 @@ if plotflg
         axis([0 4 0 4])
         xlabel('u')
         ylabel('v')
-        title(['N = ' num2str(i)])
+        mymakeaxis(gca,'xytitle',['N = ' num2str(i)])
+%         title(['N = ' num2str(i)])
     end
     
 %     figure('Name','State over time')

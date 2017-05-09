@@ -29,6 +29,7 @@ addParameter(Parser,'xgrd',xgrd_default)
 addParameter(Parser,'inputNoise',0)
 addParameter(Parser,'trialN',1);
 addParameter(Parser,'plotflg',false)
+addParameter(Parser,'epsilon',0.0001)
 
 parse(Parser,uinit,vinit,varargin{:})
 
@@ -45,6 +46,7 @@ xgrd = Parser.Results.xgrd;
 inputNoise = Parser.Results.inputNoise;
 trialN = Parser.Results.trialN;
 plotflg = Parser.Results.plotflg;
+epsilon = Parser.Results.epsilon;
 
 t = t(:);
 
@@ -64,7 +66,7 @@ for ti=2:length(t)
   I = gE(:)' + inputNoise*randn(1,trialN);
   du(ti,:) = -u(ti-1,:) + f( -wI*v(ti-1,:) + lambda*I ) +...
       transitionNoise*randn(1,trialN);
-  dv(ti,:) = -v(ti-1,:) + f( -wI*u(ti-1,:) + lambda*(I + 0.0001) ) +...
+  dv(ti,:) = -v(ti-1,:) + f( -wI*u(ti-1,:) + lambda*(I + epsilon) ) +...
       transitionNoise*randn(1,trialN);
   u(ti,:) = u(ti-1,:)+du(ti,:)/tau;
   v(ti,:) = v(ti-1,:)+dv(ti,:)/tau; 
