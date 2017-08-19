@@ -19,9 +19,10 @@ addParameter(Parser,'wI',0.0012)
 addParameter(Parser,'uinit',1.5)
 addParameter(Parser,'vinit',1.5)
 addParameter(Parser,'gE',0.0015)
-addParameter(Parser,'inNoise',0.0001)
-addParameter(Parser,'transitionNoise',0.0001)
+addParameter(Parser,'inNoise',0)
+addParameter(Parser,'transitionNoise',0)
 addParameter(Parser,'plotflg',false)
+addParameter(Parser,'K',[1 2 3])
 
 parse(Parser,varargin{:})
 
@@ -37,6 +38,7 @@ gE = Parser.Results.gE;
 inNoise = Parser.Results.inNoise;
 transitionNoise = Parser.Results.transitionNoise;
 plotflg = Parser.Results.plotflg;
+K = Parser.Results.K;
 
 if length(uinit) == 1 && length(tss) ~=1
     uinit = uinit*ones(size(tss));
@@ -49,7 +51,7 @@ if length(gE) == 1 && length(tss) ~=1
 end
 
 % Plotting
-tsColors = projectColorMaps('ts','samples',1:length(tss));
+tsColors = projectColorMaps('ts','samples',1:length(tss),'sampleDepth',length(tss));
 
 %% Iterate model for each tss, no noise
 for i = 1:N
@@ -66,9 +68,9 @@ for i = 1:N
 %         Eproj = [1 -1] * [us; vs];
 %         predErr(i-1,:) = (Eproj - mean(Eproj));
         Eproj = endpoint(i-1,:);
-        uic(i,:) = uic(i-1,:) - (Eproj - mean(Eproj))/i;
-        vic(i,:) = vic(i-1,:) - (Eproj - mean(Eproj))/i;
-        gEi(i,:) = gEi(i-1,:) - (Eproj - mean(Eproj))/(i*1000);
+        uic(i,:) = uic(i-1,:) - (Eproj - mean(Eproj))/K(i);
+        vic(i,:) = vic(i-1,:) - (Eproj - mean(Eproj))/K(i);
+        gEi(i,:) = gEi(i-1,:) - (Eproj - mean(Eproj))/(K(i)*1000);
     end
     
     for j = 1:length(tss)
@@ -111,9 +113,9 @@ for i = 1:N
         Eproj = errs(i-1,:,:);
 %         uic(i,:,:) = repmat(uinit,[1 1 trialN]) - Eproj;
 %         vic(i,:,:) = repmat(vinit,[1 1 trialN]) - Eproj;
-        uic(i,:,:) = uic(i-1,:,:) - Eproj/i;
-        vic(i,:,:) = vic(i-1,:,:) - Eproj/i;
-        gEi(i,:,:) = gEi(i-1,:,:) - Eproj/(i*1000);
+        uic(i,:,:) = uic(i-1,:,:) - Eproj/K(i);
+        vic(i,:,:) = vic(i-1,:,:) - Eproj/K(i);
+        gEi(i,:,:) = gEi(i-1,:,:) - Eproj/(K(i)*1000);
     end
     
     for j = 1:length(tss)
@@ -174,7 +176,8 @@ predErr = squeeze(mean(errs,3));
 if plotflg
     
     % State space
-    figure('Name','State space trajectories')
+    figure('Name','State space trajectories',...
+        'Position',[40 82 1287 360])
     for i = 1:N
         subplot(1,N,i)
         for j = 1:length(tss)
@@ -187,18 +190,32 @@ if plotflg
         end
         for j = 1:length(tss)
             plot(1000*wI*u{i,length(tss)-j+1}(t <= tss(length(tss)-j+1),samps),...
-                1000*wI*v{i,length(tss)-j+1}(t <= tss(length(tss)-j+1),samps),'.-',...
+                1000*wI*v{i,length(tss)-j+1}(t <= tss(length(tss)-j+1),samps),'-',...
                 'Color',tsColors(length(tss)-j+1,:))
             hold on
+        end
+        for j = 1:length(tss)
+            plot(1000*wI*u{i,length(tss)-j+1}(t == 0,samps),...
+                1000*wI*v{i,length(tss)-j+1}(t == 0,samps),...
+                'o','MarkerSize',10,...
+                'Color',tsColors(length(tss)-j+1,:),...
+                'MarkerFaceColor',tsColors(length(tss)-j+1,:))
+            
+            plot(1000*wI*u{i,length(tss)-j+1}(t == tss(length(tss)-j+1),samps),...
+                1000*wI*v{i,length(tss)-j+1}(t == tss(length(tss)-j+1),samps),...
+                's','MarkerSize',10,...
+                'Color',tsColors(length(tss)-j+1,:),...
+                'MarkerFaceColor',tsColors(length(tss)-j+1,:))
         end
         recurr = threshold(i)*ones(1,2);
         ins = vertcat(inputDim{i,:});
         inp = [min(ins(:))-0.5 max(ins(:))+0.5];
         Rback = R';%[cos(-pi/4) -sin(-pi/4); sin(-pi/4) cos(-pi/4)];
         outs = Rback*[recurr; inp];
-        plot(outs(1,:),outs(2,:),'k--')
+        plot(1000*wI*outs(1,:),1000*wI*outs(2,:),'k--')
+                
         axis square
-        axis([0 4 0 4])
+        axis([0 3.5 0 3.5])
         xlabel('u')
         ylabel('v')
         mymakeaxis(gca,'xytitle',['N = ' num2str(i)])
@@ -224,11 +241,15 @@ if plotflg
 %     xlabel('t')
 %     ylabel('v')
 %     
-    % Prediction errors
+
+%%
+     % Prediction errors
     figure('Name','Prediction errors by number of samples')
+    subplot(1,2,1)
     for i = 1:N
         plot(tss,predErr(i,:),'o-',...
-            'Color',[0.8 0.8 0.8] - (i-1)*(0.8/(N-1)))
+            'Color',projectColorMaps('epoch','samples',i,'sampleDepth',N+1),...
+            'MarkerFaceColor',projectColorMaps('epoch','samples',i,'sampleDepth',N+1))
         hold on
         legendNames{i} = num2str(i);
     end
@@ -236,6 +257,23 @@ if plotflg
     plotHorizontal(0);
     xlabel('t_s')
     ylabel('Error')
+    axis square
+    mymakeaxis(gca);
+    
+    % Prediction errors
+    subplot(1,2,2)
+    for i = 1:N
+        plot(tss,predErr(i,:) - predErr(1,:),'o-',...
+            'Color',projectColorMaps('epoch','samples',i,'sampleDepth',N+1),...
+            'MarkerFaceColor',projectColorMaps('epoch','samples',i,'sampleDepth',N+1))
+        hold on
+        legendNames{i} = num2str(i);
+    end
+    legend(legendNames)
+    plotHorizontal(0);
+    xlabel('t_s')
+    ylabel('t_e')
+    axis square
     mymakeaxis(gca);
     
 %     % State space dynamics
