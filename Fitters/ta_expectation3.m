@@ -434,7 +434,7 @@ switch method
                         tm = ts(i)*ones(trial,N) + noise';
                     elseif ~isnan(estimator.wm_drift)
                         if N == 2
-                            noise = ts(i)*repmat([estimator.wm_drift wm],[trials,1])*randn(trials,N);
+                            noise = ts(i)*repmat([estimator.wm_drift wm],[trials,1]).*randn(trials,N);
                         elseif N > 2
                             error('wm_drift not yet implemented for N > 2 measurements')
                         else
