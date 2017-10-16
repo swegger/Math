@@ -432,6 +432,15 @@ switch method
                     if ~isnan(noiseModel.Cov)
                         noise = ts(i)*noiseModel.Cov*randN(N,trials);
                         tm = ts(i)*ones(trial,N) + noise';
+                    elseif ~isnan(estimator.wm_drift)
+                        if N == 2
+                            noise = ts(i)*repmat([estimator.wm_drift wm],[trials,1])).*randn(trials,N)
+                        elseif N > 2
+                            error('wm_drift not yet implemented for N > 2 measurements')
+                        else
+                            noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
+                        end
+                        tm = ts(i)*ones(trials,N) + noise;
                     else
                         noise = wm*(ts(i)*ones(trials,N)).*randn(trials,N);
                         tm = ts(i)*ones(trials,N) + noise;
