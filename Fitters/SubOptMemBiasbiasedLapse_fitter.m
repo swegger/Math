@@ -153,7 +153,7 @@ if InequalityBoundflg
         A = varargin{InequalityBoundnum+1}.A;
         C = varargin{InequalityBoundnum+1}.C;
     elseif islogical(inequalityVar) && inequalityVar
-        A = [1 0 -1 0 0];       % if logical and true, assume wm - wm_drift < 0
+        A = [1 0 -1 0 0 0];       % if logical and true, assume wm - wm_drift < 0
         C = 0;
     end
 else
