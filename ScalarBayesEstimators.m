@@ -1256,19 +1256,42 @@ switch estimator.type
                 % TODO
                 
             case 'quad'
+                 % Not fully generalized, but optimal for 1 measurement
+%                 estimatorBLS.wy = estimator.wy;
+%                 estimatorBLS.ObsAct = estimator.ObsAct;
+%                 estimatorBLS.type = 'BLS';
+%                 e = ScalarBayesEstimators(m(:,1),wm,xmin,xmax,'method',method,...
+%                     'estimator',estimatorBLS);
+%                 wmi = wm;
+%                 if size(m,2) > 1
+%                     for mi = 2:size(m,2)
+%                         K = wmi^2/(wmi^2 + wm^2);           % Update gain
+%                         wmi = wmi*wm/sqrt(wmi^2 + wm^2);    % Update weber fraction
+%                         err = m(:,mi) - e;                % Calculate errors
+%                         f_e = ScalarBayesEstimators(err + (xmin+xmax)/2,wm,xmin,xmax,'method',method,...
+%                             'estimator',estimatorBLS) - (xmin+xmax)/2;          % Apply f_BLS nonlinearity to errors (centered on prior mean)
+%                         e = e + K*f_e;
+%                     end
+%                 end
+                
+                % Fully generalized
                 estimatorBLS.wy = estimator.wy;
                 estimatorBLS.ObsAct = estimator.ObsAct;
                 estimatorBLS.type = 'BLS';
-                e = ScalarBayesEstimators(m(:,1),wm,xmin,xmax,'method',method,...
-                    'estimator',estimatorBLS);
+                e0 = (xmin+xmax)/2;
                 wmi = wm;
-                if size(m,2) > 1
-                    for mi = 2:size(m,2)
+                for mi = 1:size(m,2)
+                    if mi == 1
+                        err = m(:,mi) - e0;
+                        f_e = ScalarBayesEstimators(err+e0,wm,xmin,xmax,'method',method,...
+                            'estimator',estimatorBLS) - e0;
+                        e = e0 + f_e;
+                    else
                         K = wmi^2/(wmi^2 + wm^2);           % Update gain
                         wmi = wmi*wm/sqrt(wmi^2 + wm^2);    % Update weber fraction
                         err = m(:,mi) - e;                % Calculate errors
-                        f_e = ScalarBayesEstimators(err + (xmin+xmax)/2,wm,xmin,xmax,'method',method,...
-                            'estimator',estimatorBLS) - (xmin+xmax)/2;          % Apply f_BLS nonlinearity to errors (centered on prior mean)
+                        f_e = ScalarBayesEstimators(err + e0,wm,xmin,xmax,'method',method,...
+                            'estimator',estimatorBLS) - e0;          % Apply f_BLS nonlinearity to errors (centered on prior mean)
                         e = e + K*f_e;
                     end
                 end
