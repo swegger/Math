@@ -305,7 +305,7 @@ for ii = 1:length(xfit)
     wy(ii) = lparams(2);
     b(ii) = lparams(3);
     lapse(ii) = lparams(4);
-    sig(ii) = lparams(5)
+    sig(ii) = lparams(5);
     
     switch CrossValidation.Type
         case 'None'
