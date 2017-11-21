@@ -342,7 +342,8 @@ for ii = 1:length(xfit)
     end
 
 end
-    
+
+wm
 sig
 %% Function to be minimized
 function logL = logLikelihoodQUAD(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,ObsAct)
