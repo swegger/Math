@@ -138,8 +138,8 @@ if Boundsflg
     ub = varargin{Boundsnum+1}(1,:);
     lb = varargin{Boundsnum+1}(2,:);
 else
-    lb = [0 0 -Inf 0];
-    ub = [1 1  Inf 1];
+    lb = [0 0 -Inf 0 0];
+    ub = [1 1  Inf 1 Inf];
 end
 
 if nargin < 3 
@@ -343,8 +343,6 @@ for ii = 1:length(xfit)
 
 end
 
-wm
-sig
 %% Function to be minimized
 function logL = logLikelihoodQUAD(wm,wy,b,lapse,sig,N,x,y,xmin,xmax,dx,M,m,pmin,pmax,ObsAct)
 %% LOGLIKELIHOODQUAD
