@@ -1256,8 +1256,7 @@ switch estimator.type
                 % TODO
                 
             case 'quad'
-                estimatorBLS.wy = estimator.wy;
-                estimatorBLS.ObsAct = estimator.ObsAct;
+                estimatorBLS = estimator;
                 estimatorBLS.type = 'BLS';
                 e = ScalarBayesEstimators(m(:,1),wm,xmin,xmax,'method',method,...
                     'estimator',estimatorBLS);
