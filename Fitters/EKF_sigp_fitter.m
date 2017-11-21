@@ -292,7 +292,7 @@ for ii = 1:length(xfit)
         wP_ini = wy(ii-1);
         b_ini = b(ii-1);
         lapse_ini = lapse(ii-1);
-        sig_ini(ii-1);
+        sig_ini = sig(ii-1);
     end
     try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
