@@ -1256,7 +1256,6 @@ switch estimator.type
                 % TODO
                 
             case 'quad'
-<<<<<<< HEAD
                 estimatorBLS = estimator;
                  % Not fully generalized, but optimal for 1 measurement
 %                 estimatorBLS.type = 'BLS';
@@ -1275,7 +1274,6 @@ switch estimator.type
 %                 end
                 
                 % Fully generalized
->>>>>>> origin/GLMHS
                 estimatorBLS.type = 'BLS';
                 e0 = (xmin+xmax)/2;
                 wmi = wm;
