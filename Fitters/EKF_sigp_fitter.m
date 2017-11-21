@@ -416,7 +416,7 @@ if iscell(N)
         WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
-        SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+        SIG = repmat(permute(sig(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         
         p_y_take_f = (1./sqrt(2.*pi.*(WY.^2.*f.^2 +SIG.^2))) .* exp( -(Y - (f+B)).^2./(2.*(WY.^2.*f.^2 +SIG.^2)) );
         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
@@ -474,7 +474,7 @@ else
     WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
-    SIG = repmat(permute(sig(:),[2 3 1]),[size(fBLS,1), size(X,2), 1]);
+    SIG = repmat(permute(sig(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     
     p_y_take_f = (1./sqrt(2.*pi.*(WY.^2.*f.^2 +SIG.^2))) .* exp( -(Y - (f+B)).^2./(2.*(WY.^2.*f.^2 +SIG.^2)) );
     p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
