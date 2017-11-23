@@ -99,7 +99,7 @@ end
 
 %% Compute the estimate
 switch estimator.type
-    case {'BLS','BLSbiasedLapse'}
+    case {'BLS','BLSbiasedLapse','BLS_wm_wp_sigp'}
         switch method.type
             case 'integral'
                 N = size(m,2);
