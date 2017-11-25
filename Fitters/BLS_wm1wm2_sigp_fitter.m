@@ -344,7 +344,7 @@ for ii = 1:length(xfit)
         b_ini = b(ii-1);
         lapse_ini = lapse(ii-1);
         wM_drift_ini = wm_drift(ii-1);
-        sigp_ini = sigp_ini(ii-1);
+        sigp_ini = sigp(ii-1);
     end
    try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
