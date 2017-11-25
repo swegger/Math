@@ -346,12 +346,12 @@ for ii = 1:length(xfit)
         wM_drift_ini = wm_drift(ii-1);
         sigp_ini = sigp_ini(ii-1);
     end
-  %  try
+   try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
-   % catch ME
-    %    save('/om/user/swegger/SubOptMemBiasbiasedLapse_fitterERROR')
-     %   rethrow(ME)
-%     end
+   catch ME
+       save('/om/user/swegger/BLS_wm1wm2_sigp_fitterERROR')
+       rethrow(ME)
+    end
     
     wm(ii) = lparams(1);
     wy(ii) = lparams(2);
