@@ -45,13 +45,16 @@ end
 XBars = mean(ALL(:,1:nx),2);
 YBars = mean(ALL(:,nx+1:ny),2);
 D = XBars-YBars;
+if ~isnan(Permutations)
+    D = [D; d];
+end
 
 switch tail
     case {'left'}
-        p = sum(D < d)/numel(D);
+        p = sum(D <= d)/numel(D);
         
     case {'right'}
-        p = sum(D > d)/numel(D);
+        p = sum(D >= d)/numel(D);
         
     otherwise
         error(['tail option ' tail ' not recognized!'])
