@@ -600,6 +600,88 @@ switch estimator.type
                 
                 e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
        end
+    
+    
+    case 'aveMeasurements'
+        weights = ones(1,size(m,2))/size(m,2);
+       % TODO
+       switch method.type
+            case 'integral'
+                error('not yet supported!')
+                N = size(m,2);
+                fBLS = @(m,xmin,xmax,wm,N)(integral(@(x)(x.*(1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true)./integral(@(x)((1./(sqrt(2*pi)*wm*x)).^N .* exp( -(m-x)'*(m-x) ./ (2*wm.^2.*x.^2) )),xmin,xmax,'ArrayValued',true));
+                for i = 1:size(m,1)
+                    e(i) = fBLS(m(i,:),xmin,xmax,wm,N)/(1+wy.^2)^estimator.ObsAct;
+                end
+                
+            case 'trapz'
+                error('not yet supported!')
+                % Number of measurements
+                N = size(m,2);
+                
+                % Create x-vector
+                dx = method.dx;
+                x = xmin - round(wm*xmin):dx:xmax + round(wm*xmax);
+                x = reshape(x,[1 1 1 length(x)]);
+                
+                % Reshape measurements for processing
+                M = permute(m,[2 3 1]);
+                M = reshape(m,1,1,1,length(x));
+                x = repmat(x,size(m,1),1,size(m,3));
+                
+                % Generate estimate
+                likelihood = (1./(sqrt(2*pi)*wm*x)).^N .* exp( -(mmx('mult',permute(x-M,[2 1 3 4]),x-M))./(2*wm.^2.*x.^2) );
+                e = trapz(x.*likelihood,4)./trapz(likelihood,4);
+                e = permute(e,[2 1])/(1+wy.^2)^estimator.ObsAct;
+                
+            case 'quad'
+                % Number of measurements
+                m = sum(repmat(weights,size(m,1),1).*m,2);
+                N = size(m,2);
+                
+                % Create x-vector
+                dx = method.dx;
+                x = xmin:dx:xmax;
+                
+                % Create Simpson'€™s nodes
+                l = length(x);
+                h = (xmax - xmin)/l;
+                w = ones(1,l);
+                w(2:2:l-1) = 4;
+                w(3:2:l-1) = 2;
+                w = w*h/3;
+                
+                % Reshape measurements for processing
+                M = permute(m,[2 3 1]);
+                M = repmat(M,[1,1,1,l]);
+                x = reshape(x,[1 1 1 l]);
+                X = repmat(x,[size(M,1) 1 size(M,3) 1]);
+                
+                % Generate estimate
+                w = reshape(w,[1 1 1 l]);
+                w = repmat(w,[1 1 size(m,1) 1]);
+                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(sum((X-M).^2,1))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+%                likelihood = ( (1./sqrt(2*pi)/wm/X(1,:,:,:)).^N .* exp( -(mmx('mult',permute(X-M,[2 1 3 4]),X-M))./(2*wm.^2.*X(1,:,:,:).^2) ) );
+                e = sum(w.*X(1,:,:,:).*likelihood,4)./sum(w.*likelihood,4);
+                e = permute(e,[3 2 1])/(1+wy.^2)^estimator.ObsAct;
+                
+           case 'MonteCarlo'
+               error('Not yet supported!')
+                % Number of measurements
+                m = sum(repmat(weights,size(m,1),1).*m,2);
+                N = size(m,2);
+                
+                % Set up integration variables
+                options.N = method.N;
+                numeratorFun = @(x,m)(MonteCarloIntegrand_numerator(x,m,wm));       % Numerator of BLS funciton
+                denominatorFun = @(x,m)(MonteCarloIntegrand_denominator(x,m,wm));    % Denominator of BLS function
+                
+                % Find the numerator and denominator of the BLS function
+                numerator = ndintegrate(numeratorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
+                denominator = ndintegrate(denominatorFun,[xmin xmax],'method','MonteCarlo','options',options,'ExtraVariables',m);
+                
+                e = numerator./denominator/(1+wy.^2)^estimator.ObsAct;
+       end
        
     case 'weightedMean'
         weights = estimator.weights;
