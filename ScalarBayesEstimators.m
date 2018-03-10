@@ -1382,6 +1382,57 @@ switch estimator.type
                 % TODO
         end
         
+    case {'EKFk1k2'}
+        switch method.type
+            case 'integral'
+                % TODO
+                
+            case 'trapz'
+                % TODO
+                
+            case 'quad'
+                estimatorBLS = estimator;
+                 % Not fully generalized, but optimal for 1 measurement
+%                 estimatorBLS.type = 'BLS';
+%                 e = ScalarBayesEstimators(m(:,1),wm,xmin,xmax,'method',method,...
+%                     'estimator',estimatorBLS);
+%                 wmi = wm;
+%                 if size(m,2) > 1
+%                     for mi = 2:size(m,2)
+%                         K = wmi^2/(wmi^2 + wm^2);           % Update gain
+%                         wmi = wmi*wm/sqrt(wmi^2 + wm^2);    % Update weber fraction
+%                         err = m(:,mi) - e;                % Calculate errors
+%                         f_e = ScalarBayesEstimators(err + (xmin+xmax)/2,wm,xmin,xmax,'method',method,...
+%                             'estimator',estimatorBLS) - (xmin+xmax)/2;          % Apply f_BLS nonlinearity to errors (centered on prior mean)
+%                         e = e + K*f_e;
+%                     end
+%                 end
+                
+                % Fully generalized
+                estimatorBLS.type = 'BLS';
+                e0 = (xmin+xmax)/2;
+                wmi = wm;
+                for mi = 1:size(m,2)
+                    if mi == 1
+                        err = m(:,mi) - e0;
+                        f_e = ScalarBayesEstimators(err+e0,wm,xmin,xmax,'method',method,...
+                            'estimator',estimatorBLS) - e0;
+                        e = e0 + estimator.k(mi)*f_e;
+                    else
+                        err = m(:,mi) - e;                % Calculate errors
+                        f_e = ScalarBayesEstimators(err + e0,wm,xmin,xmax,'method',method,...
+                            'estimator',estimatorBLS) - e0;          % Apply f_BLS nonlinearity to errors (centered on prior mean)
+                        e = e + estimator.k(mi)*f_e;
+                    end
+                end
+                
+            case 'MonteCarlo'
+                % TODO
+                
+            case 'MonteCarlo_batch'
+                % TODO
+        end
+        
     case {'EKFf'}
         switch method.type
             case 'integral'
