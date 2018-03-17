@@ -172,15 +172,15 @@ switch CrossValidation.Type
                         fitvec = true(1,length(x{i}));
                         fitvec(indx) = false; 
                         valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
+                        xfit{ii}{i} = x{i}( fitvec, : );
+                        yfit{ii}{i} = y{i}( fitvec, : );
+                        xval{ii}{i} = x{i}( valvec, : );
+                        yval{ii}{i} = y{i}( valvec, : );
                     else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
+                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N, : );
+                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N, : );
+                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end, : );
+                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end, : );
                     end
                     xfitsz{ii}(i,:) = size(xfit{ii}{i});
                 end
@@ -204,15 +204,15 @@ switch CrossValidation.Type
                     fitvec = true(1,length(x));
                     fitvec(indx) = false;
                     valvec = ~fitvec;
-                    xfit{ii} = x( fitvec );
-                    yfit{ii} = y( fitvec );
-                    xval{ii} = x( valvec );
-                    yval{ii} = y( valvec );
+                    xfit{ii} = x( fitvec, : );
+                    yfit{ii} = y( fitvec, : );
+                    xval{ii} = x( valvec, : );
+                    yval{ii} = y( valvec, : );
                 else
-                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N );
-                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N );
-                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end );
-                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end );
+                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N, : );
+                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N, : );
+                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end, : );
+                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end, : );
                 end
             end
         end   

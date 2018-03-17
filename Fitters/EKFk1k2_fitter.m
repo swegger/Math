@@ -194,15 +194,15 @@ switch CrossValidation.Type
                         fitvec = true(1,length(x{i}));
                         fitvec(indx) = false; 
                         valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
+                        xfit{ii}{i} = x{i}( fitvec, : );
+                        yfit{ii}{i} = y{i}( fitvec, : );
+                        xval{ii}{i} = x{i}( valvec, : );
+                        yval{ii}{i} = y{i}( valvec, : );
                     else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
+                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N, : );
+                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N, : );
+                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end, : );
+                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end, : );
                     end
                     xfitsz{ii}(i,:) = size(xfit{ii}{i});
                 end
