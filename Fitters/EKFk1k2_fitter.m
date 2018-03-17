@@ -426,7 +426,7 @@ if iscell(N)
         for ii = 1:length(wm)
             f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
-        if size(x,2) > 1
+        if size(x{i},2) > 1
             X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), 1]);
         else
             X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), n]);
