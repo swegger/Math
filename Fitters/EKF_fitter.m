@@ -221,7 +221,7 @@ switch CrossValidation.Type
             
         else
             for ii = 1:ceil(length(x)/CrossValidation.N)
-                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
+                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x)
                     indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
                     fitvec = true(1,length(x));
                     fitvec(indx) = false;
