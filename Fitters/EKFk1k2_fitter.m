@@ -431,7 +431,7 @@ if iscell(N)
         else
             X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), n]);
         end
-        M2 = repmat(permute(M(1:l^n,1:n,:),[1,3,4,2]),[1 size(X,2) length(wm) 1]);
+        M2 = repmat(permute(M(1:l^n,1:n,:),[1,4,3,2]),[1 size(X,2) 1 1]);
         WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, n]);
         
         p_m_take_x = prod( ...
@@ -516,7 +516,7 @@ else
     else
         X = repmat(permute(x,[3, 1, 4, 2]),[size(f,1), 1, length(wm), N]);
     end
-    M = repmat(permute(M(1:l^N,1:N,:),[1,3,4,2]),[1 size(X,2) length(wm) 1]);
+    M = repmat(permute(M(1:l^N,1:N,:),[1,4,3,2]),[1 size(X,2) 1 1]);
     WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, N]);
     
     p_m_take_x = prod( ...
