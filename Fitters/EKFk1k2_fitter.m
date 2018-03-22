@@ -194,15 +194,15 @@ switch CrossValidation.Type
                         fitvec = true(1,length(x{i}));
                         fitvec(indx) = false; 
                         valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
+                        xfit{ii}{i} = x{i}( fitvec, : );
+                        yfit{ii}{i} = y{i}( fitvec, : );
+                        xval{ii}{i} = x{i}( valvec, : );
+                        yval{ii}{i} = y{i}( valvec, : );
                     else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
+                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N, : );
+                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N, : );
+                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end, : );
+                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end, : );
                     end
                     xfitsz{ii}(i,:) = size(xfit{ii}{i});
                 end
@@ -424,19 +424,19 @@ if iscell(N)
         
         f = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
-            f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+            f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n,ii),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
-        if size(x,2) > 1
+        if size(x{i},2) > 1
             X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), 1]);
         else
             X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), n]);
         end
-        M = repmat(permute(M,[1,3,4,2]),[1 size(X,2) length(wm) 1]);
+        M2 = repmat(permute(M(1:l^n,1:n,:),[1,4,3,2]),[1 size(X,2) 1 1]);
         WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, n]);
         
         p_m_take_x = prod( ...
             (1./sqrt(2.*pi.*WM.^2.*X.^2)) .* ...
-            exp( -(M - X).^2 ./ (2.*WM.^2.*X.^2) ) ...
+            exp( -(M2 - X).^2 ./ (2.*WM.^2.*X.^2) ) ...
             ,4);     
 
         Y = repmat(y{i}',[size(f,1), 1, length(wm)]);
@@ -508,7 +508,7 @@ else
     
     f = nan(size(M(1:l^N,1:N),1),length(wm));
     for ii = 1:length(wm)
-        f(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+        f(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N,ii),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
     end
     
     if size(x,2) > 1
@@ -516,7 +516,7 @@ else
     else
         X = repmat(permute(x,[3, 1, 4, 2]),[size(f,1), 1, length(wm), N]);
     end
-    M = repmat(permute(M,[1,3,4,2]),[1 size(X,2) length(wm) 1]);
+    M = repmat(permute(M(1:l^N,1:N,:),[1,4,3,2]),[1 size(X,2) 1 1]);
     WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, N]);
     
     p_m_take_x = prod( ...

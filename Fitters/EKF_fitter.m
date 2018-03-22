@@ -194,15 +194,15 @@ switch CrossValidation.Type
                         fitvec = true(1,length(x{i}));
                         fitvec(indx) = false; 
                         valvec = ~fitvec;
-                        xfit{ii}{i} = x{i}( fitvec );
-                        yfit{ii}{i} = y{i}( fitvec );
-                        xval{ii}{i} = x{i}( valvec );
-                        yval{ii}{i} = y{i}( valvec );
+                        xfit{ii}{i} = x{i}( fitvec, : );
+                        yfit{ii}{i} = y{i}( fitvec, : );
+                        xval{ii}{i} = x{i}( valvec, : );
+                        yval{ii}{i} = y{i}( valvec, : );
                     else
-                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N );
-                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N );
-                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end );
-                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end );
+                        xfit{ii}{i} = x{i}( 1:(ii-1)*CrossValidation.N, : );
+                        yfit{ii}{i} = y{i}( 1:(ii-1)*CrossValidation.N, : );
+                        xval{ii}{i} = x{i}( (ii-1)*CrossValidation.N+1:end, : );
+                        yval{ii}{i} = y{i}( (ii-1)*CrossValidation.N+1:end, : );
                     end
                     xfitsz{ii}(i,:) = size(xfit{ii}{i});
                 end
@@ -221,20 +221,20 @@ switch CrossValidation.Type
             
         else
             for ii = 1:ceil(length(x)/CrossValidation.N)
-                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x{i})
+                if (ii-1)*CrossValidation.N+CrossValidation.N < length(x)
                     indx = (ii-1)*CrossValidation.N+1:(ii-1)*CrossValidation.N+CrossValidation.N;
                     fitvec = true(1,length(x));
                     fitvec(indx) = false;
                     valvec = ~fitvec;
-                    xfit{ii} = x( fitvec );
-                    yfit{ii} = y( fitvec );
-                    xval{ii} = x( valvec );
-                    yval{ii} = y( valvec );
+                    xfit{ii} = x( fitvec, : );
+                    yfit{ii} = y( fitvec, : );
+                    xval{ii} = x( valvec, : );
+                    yval{ii} = y( valvec, : );
                 else
-                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N );
-                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N );
-                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end );
-                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end );
+                    xfit{ii} = x( 1:(ii-1)*CrossValidation.N, : );
+                    yfit{ii} = y( 1:(ii-1)*CrossValidation.N, : );
+                    xval{ii} = x( (ii-1)*CrossValidation.N+1:end, : );
+                    yval{ii} = y( (ii-1)*CrossValidation.N+1:end, : );
                 end
             end
         end   
@@ -295,7 +295,7 @@ for ii = 1:length(xfit)
     try
         [lparams, llike, exitflg, output, lambda, grad, hessian] = eval(minimizer);
     catch ME
-        save('/om/user/swegger/BLSbiasedLapse_fitterERROR')
+        save('/om/user/swegger/EKF_fitterERROR')
         rethrow(ME)
     end
     
@@ -403,19 +403,44 @@ if iscell(N)
         estimator.ObsAct = ObsAct;
         estimator.wy = wy;
         
+%         f = nan(size(M(1:l^n,1:n),1),length(wm));
+%         for ii = 1:length(wm)
+%             f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+%         end
+%         X = repmat(x{i}',[size(f,1), 1, length(wm)]);
+%         Y = repmat(y{i}',[size(f,1), 1, length(wm)]);
+%         f = repmat(permute(f,[1 3 2]),[1,size(X,2), 1]);
+%         WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%         WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%         B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%         
+%         p_y_take_f = (1./sqrt(2.*pi.*WY.^2.*f.^2)) .* exp( -(Y - (f+B)).^2./(2.*WY.^2.*f.^2) );
+%         p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
+%         integrand = p_y_take_f.*p_m_take_x;
         f = nan(size(M(1:l^n,1:n),1),length(wm));
         for ii = 1:length(wm)
-            f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+            f(:,ii) = ScalarBayesEstimators(M(1:l^n,1:n,ii),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
         end
-        X = repmat(x{i}',[size(f,1), 1, length(wm)]);
+        if size(x{i},2) > 1
+            X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), 1]);
+        else
+            X = repmat(permute(x{i},[3, 1, 4, 2]),[size(f,1), 1, length(wm), n]);
+        end
+        M2 = repmat(permute(M(1:l^n,1:n,:),[1,4,3,2]),[1 size(X,2) 1 1]);
+        WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, n]);
+
+        p_m_take_x = prod( ...
+            (1./sqrt(2.*pi.*WM.^2.*X.^2)) .* ...
+            exp( -(M2 - X).^2 ./ (2.*WM.^2.*X.^2) ) ...
+            ,4);
+        
         Y = repmat(y{i}',[size(f,1), 1, length(wm)]);
         f = repmat(permute(f,[1 3 2]),[1,size(X,2), 1]);
-        WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
         
         p_y_take_f = (1./sqrt(2.*pi.*WY.^2.*f.^2)) .* exp( -(Y - (f+B)).^2./(2.*WY.^2.*f.^2) );
-        p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^n .* exp( -squeeze(sum((repmat(permute(M(1:l^n,1:n,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 n 1])).^2,3))./(2.*WM.^2.*X.^2) );
+        
         integrand = p_y_take_f.*p_m_take_x;
         
         for ii = 1:length(wm)
@@ -459,22 +484,49 @@ else
     estimator.ObsAct = ObsAct;
     estimator.wy = wy;
     
+%     f = nan(size(M(1:l^N,1:N),1),length(wm));
+%     for ii = 1:length(wm)
+%         f(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+%     end
+%     X = repmat(x',[size(f,1), 1, length(wm)]);
+%     Y = repmat(y',[size(f,1), 1, length(wm)]);
+%     M = repmat(M,[1 1 length(wm)]);
+%     f = repmat(permute(f,[1 3 2]),[1,size(X,2), 1]);
+%     WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%     WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%     B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
+%     
+%     p_y_take_f = (1./sqrt(2.*pi.*WY.^2.*f.^2)) .* exp( -(Y - (f+B)).^2./(2.*WY.^2.*f.^2) );
+%     p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
+%     integrand = p_y_take_f.*p_m_take_x;
+    
     f = nan(size(M(1:l^N,1:N),1),length(wm));
     for ii = 1:length(wm)
-        f(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
+        f(:,ii) = ScalarBayesEstimators(M(1:l^N,1:N,ii),wm(ii),xmin,xmax,'method',method_opts,'estimator',estimator);
     end
-    X = repmat(x',[size(f,1), 1, length(wm)]);
+    
+    if size(x,2) > 1
+        X = repmat(permute(x,[3, 1, 4, 2]),[size(f,1), 1, length(wm), 1]);
+    else
+        X = repmat(permute(x,[3, 1, 4, 2]),[size(f,1), 1, length(wm), N]);
+    end
+    M2 = repmat(permute(M(1:l^N,1:N,:),[1,4,3,2]),[1 size(X,2) 1 1]);
+    WM = repmat(permute(wm(:),[2 3 1 4]),[size(f,1), size(X,2), 1, N]);
+    
+    p_m_take_x = prod( ...
+        (1./sqrt(2.*pi.*WM.^2.*X.^2)) .* ...
+        exp( -(M2 - X).^2 ./ (2.*WM.^2.*X.^2) ) ...
+        ,4);
+    
     Y = repmat(y',[size(f,1), 1, length(wm)]);
-    M = repmat(M,[1 1 length(wm)]);
     f = repmat(permute(f,[1 3 2]),[1,size(X,2), 1]);
-    WM = repmat(permute(wm(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     WY = repmat(permute(wy(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     B = repmat(permute(b(:),[2 3 1]),[size(f,1), size(X,2), 1]);
     
     p_y_take_f = (1./sqrt(2.*pi.*WY.^2.*f.^2)) .* exp( -(Y - (f+B)).^2./(2.*WY.^2.*f.^2) );
-    p_m_take_x = (1./sqrt(2.*pi.*WM.^2.*X.^2)).^N .* exp( -squeeze(sum((repmat(permute(M(1:l^N,1:N,:),[1 4 2 3]),[1 size(X,2) 1 1])-repmat(permute(X,[1 2 4 3]),[1 1 N 1])).^2,3))./(2.*WM.^2.*X.^2) );
-    integrand = p_y_take_f.*p_m_take_x;
     
+    integrand = p_y_take_f.*p_m_take_x;
+
     logL = nan(length(wm),1);
     for ii = 1:length(wm)
         likelihood = (1-lambda(lapse(ii),Y,X)).*W(1:l^N)'*integrand(:,:,ii) + lambda(lapse(ii),Y,X).*uni(pmin,pmax,Y(:,:,ii));
