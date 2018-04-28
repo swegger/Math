@@ -1,4 +1,4 @@
-function [x, dx] = WKWmodel(x0,W,K,Gamma,varargin)
+function [x, dx] = WKWmodel(x0,W,K,Gamma,epsilon,varargin)
 %% WKWmodel
 %
 %   [x,dx] = WKWmodel(x0,W,K,Gamma)
@@ -30,7 +30,7 @@ addParameter(Parser,'inputNoise',0)
 addParameter(Parser,'trialN',1);
 addParameter(Parser,'plotflg',false)
 
-parse(Parser,x0,W,K,Gamma,varargin{:})
+parse(Parser,x0,W,K,Gamma,epsilon,varargin{:})
 
 x0 = Parser.Results.x0;
 W = Parser.Results.W;
