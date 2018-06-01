@@ -18,6 +18,7 @@ FitterFlg = 0;
 Nflg = 0;
 LapseSupportflg = 0;
 ModelEvidenceflg = 0;
+CrossValidationflg = 0;
 for i = 1:length(varargin)
     if isstr(varargin{i})
         if strcmp(varargin{i},'InitCond')
