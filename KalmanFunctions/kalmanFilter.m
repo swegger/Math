@@ -14,10 +14,6 @@ function [mu, V, K, mu_, V_] = ...
 %       x(k) = Cz(k) + eps
 %   where eps is distributed as a Gaussian with covariance Sigma.
 %
-%   TODO:
-%       (1) Assumes stationarity of measurement process and state
-%       transition probabilities; future versions should allow for
-%       nonstationarity.
 %
 %%
 
@@ -52,6 +48,14 @@ end
 
 hiddenDims = size(A,1);
 
+if size(Sigma,3) == 1
+    Sigma = repmat(Sigma,[1,1,steps]);
+end
+
+if size(Gamma,3) == 1
+    Gamma = repmat(Gamma,[1,1,steps]);
+end
+
 %% Apply kalman filter for K steps from initial condition
 mu_ = zeros(hiddenDims,steps);
 V_ = zeros(hiddenDims,hiddenDims,steps);
@@ -60,10 +64,10 @@ V = zeros(hiddenDims,hiddenDims,steps);
 for k = 1:steps
     if k == 1
         % Compute predictive distribution;
-        [mu_(:,k), V_(:,:,k)] = kalmanPredictor(mu0,V0,A,Gamma,1);
+        [mu_(:,k), V_(:,:,k)] = kalmanPredictor(mu0,V0,A,Gamma(:,:,k),1);
         
         % Compute Kalman gain
-        K(:,:,k) = kalmanGain(V_(:,:,k),C,Sigma);
+        K(:,:,k) = kalmanGain(V_(:,:,k),C,Sigma(:,:,k));
         
         % Update the predictive distribtuion using new measurements
         mu(:,k) = mu_(:,k) + K(:,:,k)*(x(:,k) - C*mu_(:,k));
@@ -71,10 +75,10 @@ for k = 1:steps
         
     else
         % Compute predictive distribution;
-        [mu_(:,k), V_(:,:,k)] = kalmanPredictor(mu(:,k-1),V(:,:,k-1),A,Gamma,1);
+        [mu_(:,k), V_(:,:,k)] = kalmanPredictor(mu(:,k-1),V(:,:,k-1),A,Gamma(:,:,k),1);
         
         % Compute Kalman gain
-        K(:,:,k) = kalmanGain(V_(:,:,k),C,Sigma);
+        K(:,:,k) = kalmanGain(V_(:,:,k),C,Sigma(:,:,k));
         
         % Update the predictive distribtuion using new measurements
         mu(:,k) = mu_(:,k) + K(:,:,k)*(x(:,k) - C*mu_(:,k));
