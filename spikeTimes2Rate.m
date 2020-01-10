@@ -35,6 +35,8 @@ addParameter(p,'resolution',1/30);
 addParameter(p,'Histogram','No')
 addParameter(p,'ComputeVariance','No')
 addParameter(p,'time',[]);
+addParameter(p,'mixedUnits',false)
+addParameter(p,'units',NaN)
 
 parse(p,spikeTimes,varargin{:})
 
@@ -45,10 +47,15 @@ resolution = p.Results.resolution;
 Histogram = p.Results.Histogram;
 ComputeVariance = p.Results.ComputeVariance;
 time = p.Results.time;
-
+mixedUnits = p.Results.mixedUnits;
+units = p.Results.units;
 
 % Collect times of all spikes
-allspikes = double([spikeTimes{:}]);
+if mixedUnits
+    allspikes = double(spikeTimes{1});
+else
+    allspikes = double([spikeTimes{:}]);
+end
 
 % Determine the start and end times, if none supplied
 if isempty(time)
@@ -75,15 +82,31 @@ switch ComputeVariance
                         Time = repmat(time,1,length(allspikes));
                     else
                         Time = [];
-                        for i = 1:length(spikeTimes)
-                            Time = [Time repmat(time(:,i),1,length(spikeTimes{i}))];
+                        if mixedUnits
+                            if isnan(units)
+                                units = unique(spikeTimes{2});
+                            end
+                            for uniti = 1:length(units)
+                                Time = [Time repmat(time(:,uniti),1,sum(spikeTimes{2} == units(uniti)))];
+                            end
+                        else
+                            for i = 1:length(spikeTimes)
+                                Time = [Time repmat(time(:,i),1,length(spikeTimes{i}))];
+                            end
                         end
                     end                        
                     Spikes = repmat(allspikes,size(Time,1),1);
                     n = sum(~isnan(time),2);
                     rate = 1./n .* nansum( Filter(Time-Spikes) , 2);
                 end
-                r = nan(size(time,1),length(spikeTimes));
+                if mixedUnits
+                    if isnan(units)
+                        units = unique(spikeTimes{2});
+                    end
+                    r = nan(size(time,1),length(units));
+                else
+                    r = nan(size(time,1),length(spikeTimes));
+                end
                 rateVariance = nan(size(time,1),1);
                 mspikecount = nan(size(time,1),1);
                 spikeCount = nan(size(time));
@@ -97,14 +120,36 @@ switch ComputeVariance
                 
                 % Find trial by trial rates
                 if size(time,2) == 1
-                    time = repmat(time,1,length(spikeTimes));
-                end
-                for i = 1:length(spikeTimes)
-                    if isempty(spikeTimes{i})
-                        spikeCount(:,i) = zeros(size(time(:,i)));
+                    if mixedUnits
+                        if isnan(units)
+                            units = unique(spikeTimes{2});
+                        end
+                        time = repmat(time,1,length(units));
                     else
-                        counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
-                        spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        time = repmat(time,1,length(spikeTimes));
+                    end
+                end
+                if mixedUnits
+                    if isnan(units)
+                        units = unique(spikeTimes{2});
+                    end
+                    for uniti = 1:length(units)
+                        spks = spikeTimes{1}(spikeTimes{2} == units(uniti));
+                        if isempty(spks)
+                            spikeCount(:,i) = zeros(size(time(:,i)));
+                        else
+                            counttemp = histc(spks,time(~isnan(time(:,i)),1));
+                            spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        end
+                    end
+                else
+                    for i = 1:length(spikeTimes)
+                        if isempty(spikeTimes{i})
+                            spikeCount(:,i) = zeros(size(time(:,i)));
+                        else
+                            counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
+                            spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        end
                     end
                 end
                 
@@ -113,7 +158,14 @@ switch ComputeVariance
                 mspikeCount = sum(spikeCount,2)./n;
                 mspikeCount(isnan(mspikeCount)) = 0;
                 rate = conv(mspikeCount,f,'same');
-                r = nan(size(time,1),length(spikeTimes));
+                if mixedUnits
+                    if isnan(units)
+                        units = unique(spikeTimes{2});
+                    end
+                    r = nan(size(time,1),length(units));
+                else
+                    r = nan(size(time,1),length(spikeTimes));
+                end
                 rateVariance = nan(size(time,1),1);
                 
             otherwise
@@ -125,16 +177,40 @@ switch ComputeVariance
             case {'No','no','N','n',0}
                 % Find rate by filtering spike train
                 if size(time,2) == 1
-                    time = repmat(time,1,length(spikeTimes));
-                end
-                for i = 1:length(spikeTimes)
-                    if isempty(spikeTimes{i})
-                        r(:,i) = zeros(size(time,1),1);
+                    if mixedUnits
+                        if isnan(units)
+                            units = unique(spikeTimes{2});
+                        end
+                        time = repmat(time,1,length(units));
                     else
-                        Time = repmat(time(:,i),1,length(spikeTimes{i}));
-                        Spikes = repmat(spikeTimes{i},size(time,1),1);
-                        r(:,i) = sum( Filter(Time-Spikes) , 2);
-                         
+                        time = repmat(time,1,length(spikeTimes));
+                    end
+                end
+                if mixedUnits
+                    if isnan(units)
+                        units = unique(spikeTimes{2});
+                    end
+                    for uniti = 1:length(units)
+                        spks = spikeTimes{1}(spikeTimes{2} == units(uniti));
+                        if isempty(spks)
+                            r(:,uniti) = zeros(size(time,1),1);
+                        else
+                            Time = repmat(time(:,uniti),1,length(spks));
+                            Spikes = repmat(spks,size(time,1),1);
+                            r(:,uniti) = sum( Filter(Time-Spikes) , 2);
+                            
+                        end
+                    end
+                else
+                    for i = 1:length(spikeTimes)
+                        if isempty(spikeTimes{i})
+                            r(:,i) = zeros(size(time,1),1);
+                        else
+                            Time = repmat(time(:,i),1,length(spikeTimes{i}));
+                            Spikes = repmat(spikeTimes{i},size(time,1),1);
+                            r(:,i) = sum( Filter(Time-Spikes) , 2);
+                            
+                        end
                     end
                 end
                 % Calculate rate and variance
@@ -153,26 +229,55 @@ switch ComputeVariance
                 
                 % Find trial by trial rates and counts
                 if size(time,2) == 1
-                    time = repmat(time,1,length(spikeTimes));
-                end
-                if size(time,2) == 1
-                    time = repmat(time,1,length(spikeTimes));
-                end
-                for i = 1:length(spikeTimes)
-                    % Counts
-                    counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
-                    if isempty(counttemp)
-                        spikeCount(:,i) = zeros(size(time(:,i)));
+                    if mixedUnits
+                        if isnan(units)
+                            units = unique(spikeTimes{2});
+                        end
+                        time = repmat(time,1,length(units));
                     else
-                        spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        time = repmat(time,1,length(spikeTimes));
                     end
-                    
-                    % Rates
-                    rtemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
-                    if isempty(rtemp)
-                        r(:,i) = zeros(size(time,1),1);
-                    else
-                        r(:,i) = [conv(rtemp(:),f,'same'); nan(sum(isnan(time(:,i))),1)];
+                end
+                
+                if mixedUnits
+                    if isnan(units)
+                        units = unique(spikeTimes{2});
+                    end
+                    for i = 1:length(units)
+                        spks = spikeTimes{1}(spikeTimes{2} == units(i));
+                        % Counts
+                        counttemp = histc(spks,time(~isnan(time(:,i)),i));
+                        if isempty(counttemp)
+                            spikeCount(:,i) = zeros(size(time(:,i)));
+                        else
+                            spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        end
+                        
+                        % Rates
+                        rtemp = histc(spks,time(~isnan(time(:,i)),i));
+                        if isempty(rtemp)
+                            r(:,i) = zeros(size(time,1),1);
+                        else
+                            r(:,i) = [conv(rtemp(:),f,'same'); nan(sum(isnan(time(:,i))),1)];
+                        end
+                    end                    
+                else
+                    for i = 1:length(spikeTimes)
+                        % Counts
+                        counttemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
+                        if isempty(counttemp)
+                            spikeCount(:,i) = zeros(size(time(:,i)));
+                        else
+                            spikeCount(:,i) = [counttemp(:); zeros(sum(isnan(time(:,i))),1)];
+                        end
+                        
+                        % Rates
+                        rtemp = histc(spikeTimes{i},time(~isnan(time(:,i)),i));
+                        if isempty(rtemp)
+                            r(:,i) = zeros(size(time,1),1);
+                        else
+                            r(:,i) = [conv(rtemp(:),f,'same'); nan(sum(isnan(time(:,i))),1)];
+                        end
                     end
                 end
                 
