@@ -150,6 +150,17 @@ for ni = 1:N
     CresCI(:,:,ni) = cov(permute(resCI(:,ni,:),[3,1,2]));
 end
 
+%% PCA
+CR = cov(reshape( permute(m - mean(m,[1,3]),[1,3,2]),[size(m,1)*size(m,3),size(m,2)]));
+[vecs, vals] = eig(CR);
+vecs = fliplr(vecs);
+vals = flipud(diag(vals));
+reconstructionN = 5;
+
+for ci = 1:size(m,3)
+    recon(:,:,ci) = permute(vecs(:,1:reconstructionN)'*m(:,:,ci)',[2,3,4,1]);
+end
+
 %% Fitting
 ind = 19;
 x = reshape(nu2,[size(nu2,1),size(nu2,2)*size(nu2,3)]);
@@ -157,7 +168,7 @@ y = reshape(counts(ind,:,:),[1,size(counts,2)*size(counts,3)]);
 [theta, logPosterior, exitflg, output, thetas] = FitMultivariateLinearExpPoissonObsMAP(x,y,[0 0 0 0]);
 
 %% Plotting
-figure
+figure('Name','Low-dimensional computations','Position',[336 503 1754 420])
 for mi = 1:M
     subplot(1,M,mi)
     plot(t,permute(nu(mi,:,randsample(trialN,10)),[2,3,1]),'Color',[0.6 0.6 0.6])
@@ -166,13 +177,15 @@ for mi = 1:M
     for ci = 1:length(cohs)
         plot(t,permute(mean(nu(mi,:,coherence == cohs(ci)),3),[2,1]),'k','LineWidth',2)
     
-        plot(t,permute(nanmean(nu2(mi,:,coherence == cohs(ci)),3),[2,1]),'r','LineWidth',1)
+%         plot(t,permute(nanmean(nu2(mi,:,coherence == cohs(ci)),3),[2,1]),'r','LineWidth',1)
     end
+    xlabel('Time form input onset')
+    ylabel('Low-dimensional output')
 end
 
-figure
+figure('Name','Computational covariance','Position',[1262 367 1180 962])
 subplot(2,2,1)
-imagesc(t,t,mean(Cres,3)-diag(diag(mean(Cres,3)))+diag(mean(varCE,2)))
+imagesc(t,t,mean(Cres,3)-diag(diag(mean(Cres,3))))%+diag(mean(varCE,2)))
 cax = caxis;
 hold on
 axis square
@@ -183,7 +196,7 @@ ylabel('Time from input onset')
 title('CovCE (network dynamics)')
 
 subplot(2,2,2)
-imagesc(t,t,mean(CresCI,3)-diag(diag(mean(CresCI,3)))+diag(mean(varCE_CI,2)))
+imagesc(t,t,mean(CresCI,3)-diag(diag(mean(CresCI,3))))%+diag(mean(varCE_CI,2)))
 cax2 = caxis;
 hold on
 axis square
