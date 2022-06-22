@@ -1,12 +1,13 @@
-function SimComputeGain(varargin)
+function SimComputeGainNonLinearInhib(varargin)
 %%
 %
 %
 %%
 
 %% Defaults
-K_default = [0 0 0; 1 1 0; 0.7 0.3 0];    % Defaults to a low pass of input and an integrator of the low-pass
+K_default = [0 0 0 0; 1 1 0 0; 0.7 0.3 0 -0.1; 0 0 1 0];    % Defaults to a low pass of input and an integrator of the low-pass
 f_default = @(v)(v); %@(v)(1./(1+exp(-v)))
+f_coherence_default = @(c)(1-c/3);
 
 %% Parse inputs
 Parser = inputParser;
@@ -18,12 +19,16 @@ addParameter(Parser,'zeta',NaN)
 addParameter(Parser,'t',-100:1600)
 addParameter(Parser,'trialN',50)
 addParameter(Parser,'cohs',[20 60 100]/100)
+addParameter(Parser,'s',10)
 addParameter(Parser,'Sigma',NaN)
 addParameter(Parser,'f',f_default)
+addParameter(Parser,'f_coherence',f_coherence_default)
 addParameter(Parser,'tau',300)
 addParameter(Parser,'betas',[0.4 -0.1])
 addParameter(Parser,'constant',0)
 addParameter(Parser,'baseline',log(10))
+addParameter(Parser,'sparsity',NaN)
+addParameter(Parser,'inhibInd',4)
 
 parse(Parser,varargin{:})
 
@@ -34,21 +39,27 @@ zeta = Parser.Results.zeta;
 t = Parser.Results.t;
 trialN = Parser.Results.trialN;
 cohs = Parser.Results.cohs;
+s = Parser.Results.s;
 Sigma = Parser.Results.Sigma;
 f = Parser.Results.f;
+f_coherence = Parser.Results.f_coherence;
 tau = Parser.Results.tau;
 betas = Parser.Results.betas;
 constant = Parser.Results.constant;
 baseline = Parser.Results.baseline;
+sparsity = Parser.Results.sparsity;
+inhibInd = Parser.Results.inhibInd;
 
 M = size(K,1);
 
 coherence = randsample(cohs,trialN,true);
+speeds = randsample(s,trialN,true);
 
 % Generate compression matrices
 if any(isnan(Gamma(:)))
     Gamma = randn(M,N)/sqrt(N);
 end
+Gamma(abs(Gamma)<sparsity) = 0;
 
 % Generate input
 if any(isnan(zeta(:)))
@@ -69,28 +80,28 @@ for triali = 1:trialN
     u(:,:,triali) = Gamma'*zeta(:,:,triali);
 end
 v = nan(N,length(t),trialN);
-%dv = nan(N,length(t),trialN);
 nu = nan(M,length(t),trialN);
 
 v(:,1,:) = randn([N,1,trialN])*sigma;
-%dv(:,1,:) = zeros([N,1,trialN]);
 
 
 v2 = nan(N,length(t),trialN);
-%dv2 = nan(N,length(t),trialN);
 nu2 = nan(M,length(t),trialN);
-%dnu2 = nan(M,length(t),trialN);
 
 v2(:,1,:) = randn([N,1,trialN])/10;
-%dv2(:,1,:) = zeros([N,1,trialN]);
 nu2(:,1,:) = zeros([M,1,trialN]);
-%dnu2(:,1,:) = zeros([M,1,trialN]);
 
 for triali = 1:trialN
     eta = permute(mvnrnd(zeros(length(t),N),Sigma),[2,1]);
     for ti = 2:length(t)
-        dv = (...
-            W*f(v(:,ti-1,triali)) + u(:,ti,triali) + eta(:,ti) + constant)/tau;
+        coherence_mod = zeros(M,1);
+        coherence_mod(inhibInd) = f_coherence(coherence(triali));
+%         dv = (...
+%             W*f(v(:,ti-1,triali)+Gamma'*coherence_mod) + u(:,ti,triali) + eta(:,ti) + constant)/tau;
+        x = Gamma*v(:,ti-1,triali);
+        dx = (K-eye(M))*x;
+        dx(inhibInd) = -x(inhibInd) + K(inhibInd,:)*x*f_coherence(coherence(triali));
+        dv = (Gamma'*dx + u(:,ti,triali) + eta(:,ti) + constant)/tau;
         v(:,ti,triali) = v(:,ti-1,triali) + dv*deltat;
         
         dnu2 = ...
@@ -163,9 +174,6 @@ for ci = 1:size(m,3)
     recon(:,:,ci) = permute(vecs(:,1:reconstructionN)'*m(:,:,ci)',[2,3,4,1]);
 end
 
-%% Compute RSC
-fo
-
 %% Fitting
 ind = 19;
 x = reshape(nu2,[size(nu2,1),size(nu2,2)*size(nu2,3)]);
@@ -174,15 +182,15 @@ y = reshape(counts(ind,:,:),[1,size(counts,2)*size(counts,3)]);
 
 %% Plotting
 figure('Name','Low-dimensional computations','Position',[336 503 1754 420])
+colors = colormap('lines');
 for mi = 1:M
     subplot(1,M,mi)
     plot(t,permute(nu(mi,:,randsample(trialN,10)),[2,3,1]),'Color',[0.6 0.6 0.6])
     hold on
     
     for ci = 1:length(cohs)
-        plot(t,permute(mean(nu(mi,:,coherence == cohs(ci)),3),[2,1]),'k','LineWidth',2)
-    
-%         plot(t,permute(nanmean(nu2(mi,:,coherence == cohs(ci)),3),[2,1]),'r','LineWidth',1)
+        plot(t,permute(mean(nu(mi,:,coherence == cohs(ci)),3),[2,1]),...
+            'Color',colors(ci,:),'LineWidth',2)
     end
     xlabel('Time form input onset')
     ylabel('Low-dimensional output')
@@ -250,6 +258,6 @@ function r = localSigmoid(v)
 function K = generateK(Kbase,cohAdjust,inds)
     K = Kbase;
     for ii = size(inds,1)
-        K(inds(ii,1),inds(ii,2) = cohAdjust(ii);
+        K(inds(ii,1),inds(ii,2)) = cohAdjust(ii);
     end
     
