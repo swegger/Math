@@ -21,8 +21,10 @@ addParameter(Parser,'cohs',[20 60 100]/100)
 addParameter(Parser,'Sigma',NaN)
 addParameter(Parser,'f',f_default)
 addParameter(Parser,'tau',300)
+addParameter(Parser,'betas',[0.4 -0.1])
 addParameter(Parser,'constant',0)
 addParameter(Parser,'baseline',log(10))
+addParameter(Parser,'sparsity',NaN)
 
 parse(Parser,varargin{:})
 
@@ -36,8 +38,10 @@ cohs = Parser.Results.cohs;
 Sigma = Parser.Results.Sigma;
 f = Parser.Results.f;
 tau = Parser.Results.tau;
+betas = Parser.Results.betas;
 constant = Parser.Results.constant;
 baseline = Parser.Results.baseline;
+sparsity = Parser.Results.sparsity;
 
 M = size(K,1);
 
@@ -47,10 +51,11 @@ coherence = randsample(cohs,trialN,true);
 if any(isnan(Gamma(:)))
     Gamma = randn(M,N)/sqrt(N);
 end
+Gamma(abs(Gamma)<sparsity) = 0;
 
 % Generate input
 if any(isnan(zeta(:)))
-    zeta = generateZeta(M,t,coherence);
+    zeta = generateZeta(M,t,coherence,betas);
 end
 
 % Set covariance matrix of inputs
@@ -224,12 +229,27 @@ legend({'Network','Common Input'},'Location','Northwest')
 %% functions
 
 %% generateZeta
-function zeta = generateZeta(M,t,coherence)
+function zeta = generateZeta(M,t,coherence,betas)
     zeta = zeros(M,length(t),length(coherence));
-    utemp = repmat(permute(coherence,[1,3,2]),[1,sum(t>=0 & t<600),1]);
-    zeta(1,t >= 0 & t < 600,:) = utemp;
+%     utemp = repmat(permute(coherence,[1,3,2]),[1,sum(t>=0 & t<600),1]);
+%     zeta(1,t >= 0 & t < 600,:) = utemp;
+    
+    zetaBase = zeta;
+    zetaBase(1,t >= 0 & t < 200,:) = ones(size(zetaBase(1,t >= 0 & t < 200,:)));
+    zetaBase(1,t >= 200,:) = 0.1*ones(size(zetaBase(1,t >= 200,:)));
+    for ci = 1:length(coherence)
+        zeta(1,t >= 0 & t < 200,ci) = zetaBase(1,t >= 0 & t < 200,ci) + betas(1)*(coherence(ci)-mean(coherence));
+        zeta(1,t >= 200,ci) = zetaBase(1,t >= 200,ci) + betas(2)*(coherence(ci)-mean(coherence));
+    end
     
 %% localSigmoid
 function r = localSigmoid(v)
     r = 1./(1+exp(v));
+    
+%% generateK
+function K = generateK(Kbase,cohAdjust,inds)
+    K = Kbase;
+    for ii = size(inds,1)
+        K(inds(ii,1),inds(ii,2) = cohAdjust(ii);
+    end
     
