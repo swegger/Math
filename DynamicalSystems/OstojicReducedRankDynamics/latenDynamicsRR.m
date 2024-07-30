@@ -18,6 +18,7 @@ addRequired(Parser,'kappas0')
 addRequired(Parser,'sigmas')
 addParameter(Parser,'eps',1e-10)
 addParameter(Parser,'nsteps',1000)
+addParameter(Parser,'forceLinear',false)
 
 parse(Parser,tau,us,overlaps,kappas0,sigmas,varargin{:})
 
@@ -28,6 +29,7 @@ kappas0 = Parser.Results.kappas0;
 sigmas = Parser.Results.sigmas;
 eps = Parser.Results.eps;
 nsteps = Parser.Results.nsteps;
+forceLinear = Parser.Results.forceLinear;
 
 %% Initialize
 N = length(kappas0);
@@ -58,7 +60,11 @@ for ti = 2:T
     vs(:,ti) = vs(:,ti-1) + dvs(:,ti)/tau;
     
     deltas(ti) = computeDelta(kappas(:,ti-1),us(:,ti),sigmas);
-    sigmaTildes(:,:,ti) = overlaps .* deltaMean(deltas(ti),eps,nsteps);
+    if forceLinear
+        sigmaTildes(:,:,ti) = overlaps;
+    else
+        sigmaTildes(:,:,ti) = overlaps .* deltaMean(deltas(ti),eps,nsteps);
+    end
     
     dkappas(:,ti) = -kappas(:,ti-1) + sigmaTildes(:,1:N,ti)*kappas(:,ti-1) + ...
         sigmaTildes(:,N+1:end,ti)*vs(:,ti);

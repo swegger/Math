@@ -1,4 +1,4 @@
-function [mu_, Sig_] = conditionalGaussian(mu,Sig,f,varargin)
+function [mu_, Sig_, muUn, SigUnObs, SigObsObs, SigUnUn] = conditionalGaussian(mu,Sig,f,varargin)
 %% conditionalGaussian
 %
 %
@@ -64,7 +64,7 @@ muUn = mu(~x_indices);
 
 mu_ = muUn + SigUnObs/SigObsObs*(f-muObs);
 Sig_ = SigUnUn - SigUnObs/SigObsObs*SigObsUn;
-if nearSPD
+if nearSPD && ~any(isnan(Sig_(:)))
     Sig_ = nearestSPD(Sig_);
 end
 

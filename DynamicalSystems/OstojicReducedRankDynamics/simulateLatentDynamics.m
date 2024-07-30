@@ -17,6 +17,7 @@ addParameter(Parser,'us',NaN)
 addParameter(Parser,'kappas0',NaN)
 addParameter(Parser,'overlaps',NaN)
 addParameter(Parser,'sigmas',NaN)
+addParameter(Parser,'forceLinear',false)
 addParameter(Parser,'plotOpts',plotOpts_default)
 
 parse(Parser,varargin{:})
@@ -27,6 +28,7 @@ us = Parser.Results.us;
 kappas0 = Parser.Results.kappas0;
 overlaps = Parser.Results.overlaps;
 sigmas = Parser.Results.sigmas;
+forceLinear = Parser.Results.forceLinear;
 plotOpts = Parser.Results.plotOpts;
 
 %% Check input, generate if necessary
@@ -61,7 +63,7 @@ if any(isnan(sigmas))
 end
 
 %% Run simulation
-[dkappas, kappas, sigmaTildes, deltas, vs] = latenDynamicsRR(tau,us,overlaps,kappas0,sigmas);
+[dkappas, kappas, sigmaTildes, deltas, vs] = latenDynamicsRR(tau,us,overlaps,kappas0,sigmas,'forceLinear',forceLinear);
 
 %% Plot results
 if plotOpts.On
